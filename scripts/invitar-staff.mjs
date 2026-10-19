@@ -20,7 +20,7 @@ const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistS
 
 const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
   data: { full_name: fullName, role_title: "Equipo IDT", permission: "admin" },
-  redirectTo: `${site}/auth/confirm?next=/auth/nueva-clave`,
+  redirectTo: `${site}/auth/aceptar?next=/auth/nueva-clave`,
 });
 if (error) {
   console.error("No se pudo invitar:", error.message);

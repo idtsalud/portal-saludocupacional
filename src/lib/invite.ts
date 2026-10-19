@@ -19,7 +19,7 @@ export async function inviteUser(input: InviteInput) {
       role_title: input.roleTitle,
       permission: input.permission,
     },
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm?next=/auth/nueva-clave`,
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/aceptar?next=/auth/nueva-clave`,
   });
   return { error };
 }

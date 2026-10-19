@@ -20,7 +20,7 @@ export async function forgotPassword(formData: FormData) {
 
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm?next=/auth/nueva-clave`,
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/aceptar?next=/auth/nueva-clave`,
   });
   // Mismo mensaje exista o no la cuenta, para no revelar qué correos están registrados.
   redirect("/login?enviado=1");
