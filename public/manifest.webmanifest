@@ -1,0 +1,9 @@
+{
+  "name": "Portal SaludOcupacional",
+  "short_name": "SaludOcupacional",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#001b5a",
+  "theme_color": "#001b5a",
+  "icons": [{ "src": "/icono.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
