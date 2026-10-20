@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/session";
 import { inviteUser, PERMISSIONS } from "@/lib/invite";
-import { syncAvisos } from "@/lib/avisos-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { presetByKey } from "@/lib/services";
+import { createClient as createServerClient } from "@/lib/supabase/server";
+import { PLAN_FIELDS, type Plan } from "@/lib/plans";
+import { SERVICE_KEYS } from "@/lib/services";
 
 const str = (f: FormData, k: string, max = 200) => String(f.get(k) ?? "").trim().slice(0, max);
 
@@ -43,16 +44,22 @@ async function setServices(supabase: Awaited<ReturnType<typeof requireStaff>>["s
   return null;
 }
 
+type Supa = Awaited<ReturnType<typeof requireStaff>>["supabase"];
+async function planByKey(supabase: Supa, key: string) {
+  const { data } = await supabase.from("plans").select(PLAN_FIELDS).eq("key", key).maybeSingle();
+  return data as Plan | null;
+}
+
 export async function createOrg(f: FormData) {
   const { supabase } = await requireStaff();
-  const preset = presetByKey(str(f, "preset"));
+  const preset = await planByKey(supabase, str(f, "preset"));
   if (!preset) redirect("/admin?error=datos");
   const staff = parseInt(str(f, "staff_count"), 10);
   const name = str(f, "name", 160);
   if (!name) redirect("/admin?error=datos");
   const { data, error } = await supabase
     .from("organizations")
-    .insert({ name, kind: preset.kind, plan: preset.name, plan_units: preset.units, staff_count: Number.isFinite(staff) ? staff : null })
+    .insert({ name, kind: preset.kind, plan: preset.name, plan_key: preset.key, plan_units: preset.units, staff_count: Number.isFinite(staff) ? staff : null })
     .select("id")
     .single();
   if (error || !data) redirect("/admin?error=fallo");
@@ -74,9 +81,9 @@ export async function updateOrgServices(f: FormData) {
 export async function applyPreset(f: FormData) {
   const { supabase } = await requireStaff();
   const id = str(f, "id");
-  const preset = presetByKey(str(f, "preset"));
+  const preset = await planByKey(supabase, str(f, "preset"));
   if (!id || !preset) redirect(`/admin/org/${id}?error=datos`);
-  const { error } = await supabase.from("organizations").update({ kind: preset.kind, plan: preset.name, plan_units: preset.units }).eq("id", id);
+  const { error } = await supabase.from("organizations").update({ kind: preset.kind, plan: preset.name, plan_key: preset.key, plan_units: preset.units }).eq("id", id);
   if (error || (await setServices(supabase, id, preset.services))) redirect(`/admin/org/${id}?error=fallo`);
   revalidatePath(`/admin/org/${id}`);
   redirect(`/admin/org/${id}?ok=servicios`);
@@ -150,13 +157,60 @@ export async function uploadDocument(f: FormData) {
   redirect("/admin/documentos?ok=doc");
 }
 
-export async function runSync() {
+const TEST_EMAIL = /^prueba-[a-z0-9-]+@saludocupacional\.com\.ar$/;
+
+/** Abre el portal como un usuario de prueba (solo correos prueba-…@saludocupacional.com.ar). Cierra la sesión actual. */
+export async function loginAsTestUser(f: FormData) {
   await requireStaff();
-  try {
-    await syncAvisos();
-  } catch {
-    redirect("/admin?error=fallo");
+  const email = str(f, "email").toLowerCase();
+  if (!TEST_EMAIL.test(email)) redirect("/admin?error=permiso");
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  if (error || !data.properties?.hashed_token) redirect("/admin?error=fallo");
+  const supabase = await createServerClient();
+  await supabase.auth.signOut();
+  const { error: e2 } = await supabase.auth.verifyOtp({ type: "magiclink", token_hash: data.properties.hashed_token });
+  if (e2) redirect("/login?error=enlace");
+  redirect("/");
+}
+
+/** Crea o edita un plan. Con "aplicar a clientes", también actualiza a todos los clientes que lo tienen. */
+export async function savePlan(f: FormData) {
+  const { supabase } = await requireStaff();
+  const isNew = str(f, "is_new") === "1";
+  const key = isNew
+    ? str(f, "name", 60).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+    : str(f, "key");
+  const kind = str(f, "kind") === "comercio" ? "comercio" : "empresa";
+  const name = str(f, "name", 80);
+  const units = parseInt(str(f, "units"), 10);
+  const priceRaw = str(f, "price").replace(/[^\d]/g, "");
+  const services = f.getAll("svc").map(String).filter((s) => (SERVICE_KEYS as readonly string[]).includes(s));
+  const back = isNew ? "/admin/planes/nuevo" : `/admin/planes/${key}`;
+  if (!key || !name || !Number.isFinite(units) || units < 0) redirect(`${back}?error=datos`);
+
+  const row = {
+    kind,
+    name,
+    units,
+    price: priceRaw ? Number(priceRaw) : null,
+    description: str(f, "description", 400),
+    services,
+    sort: parseInt(str(f, "sort"), 10) || 0,
+    active: f.get("active") === "on",
+  };
+  const { error } = isNew
+    ? await supabase.from("plans").insert({ key, ...row })
+    : await supabase.from("plans").update(row).eq("key", key);
+  if (error) redirect(`${back}?error=fallo`);
+
+  if (f.get("apply_clients") === "on") {
+    const { data: orgs } = await supabase.from("organizations").select("id").eq("plan_key", key);
+    for (const o of orgs ?? []) {
+      await supabase.from("organizations").update({ kind, plan: name, plan_units: units }).eq("id", o.id);
+      if (await setServices(supabase, o.id, services)) redirect(`/admin/planes/${key}?error=fallo`);
+    }
   }
-  revalidatePath("/admin");
-  redirect("/admin?ok=sync");
+  revalidatePath("/admin/planes");
+  redirect(`/admin/planes/${key}?ok=plan`);
 }

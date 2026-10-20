@@ -6,7 +6,7 @@ import { canSeeAbsences, requireOrg } from "@/lib/session";
 import { firstName, fmtLongToday } from "@/lib/format";
 import { waComercial } from "@/lib/contacto";
 import type { ServiceKey } from "@/lib/services";
-import { CommunityCard } from "@/components/Posts";
+import { PostList } from "@/components/Posts";
 import { POST_FIELDS, type Post } from "@/lib/posts";
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -37,8 +37,8 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
     const today = ymd(new Date());
     absent = {
       today: list.filter((a) => ymd(new Date(a.received_at)) === today).length,
-      active: list.filter((a) => /activ|seguim/i.test(a.status ?? "")).length,
-      pendingCert: list.filter((a) => /^pend/i.test(a.certificate_status ?? "")).length,
+      active: list.filter((a) => /pendiente/i.test(a.status ?? "")).length,
+      pendingCert: list.filter((a) => a.certificate_status === "Pendiente").length,
     };
   }
 
@@ -73,24 +73,46 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
       </div>
       <div className="kpis">
         <div className="kpi"><b>{absent.today}</b><span>Avisos de hoy</span></div>
-        <div className="kpi"><b>{absent.active}</b><span>Licencias activas</span></div>
-        <div className="kpi"><b>{absent.pendingCert}</b><span>Certificados pendientes</span></div>
+        <div className="kpi"><b>{absent.active}</b><span>Pendientes de evaluación</span></div>
+        <div className="kpi"><b>{absent.pendingCert}</b><span>Sin certificado</span></div>
       </div>
     </section>
   );
 
-  const newsCard = posts && posts.length > 0 ? (
-    <CommunityCard posts={posts as Post[]} base="/comunidad" />
-  ) : (
-    <section className="card">
-      <h2>Novedades de IDT</h2>
-      <div className="list">
-        {(news ?? []).map((n) => (
-          <div className="li" key={n.id}>
-            <div className="grow"><b>{n.title}</b><span>{n.body}</span></div>
-          </div>
+  const NEWS_ICONS = ["info", "cap", "heart", "shield", "team"];
+  const newsSection = (news ?? []).length > 0 && (
+    <section style={{ display: "grid", gap: 16 }}>
+      <div className="section-h"><h2>Novedades de IDT</h2></div>
+      <div className="news-grid">
+        {(news ?? []).map((n, i) => (
+          <article className="news-card" key={n.id}>
+            <span className="ic"><Icon name={NEWS_ICONS[i % NEWS_ICONS.length]} /></span>
+            <div>
+              <span className="kicker">Novedad</span>
+              <h3>{n.title}</h3>
+              <p>{n.body}</p>
+            </div>
+          </article>
         ))}
       </div>
+    </section>
+  );
+  const communitySection = posts && posts.length > 0 && (
+    <section style={{ display: "grid", gap: 16 }}>
+      <div className="section-h">
+        <h2>Comunidad</h2>
+        <Link href="/comunidad">Ver todo</Link>
+      </div>
+      <PostList posts={(posts as Post[]).slice(0, 3)} base="/comunidad" empty="" />
+    </section>
+  );
+  const newsCard = (
+    <section className="card">
+      <h2>Tu médico y tu equipo IDT</h2>
+      <p className="muted" style={{ margin: "6px 0 16px" }}>
+        {org.referente_medico ? `Tu médico referente es ${org.referente_medico}.` : "Tenés un médico del trabajo referente y un equipo de IDT que te acompaña."} Escribiles directo cuando lo necesites.
+      </p>
+      <Link className="btn sec" href="/equipo"><Icon name="team" />Ver mi equipo IDT</Link>
     </section>
   );
 
@@ -150,6 +172,8 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
           </section>
           {newsCard}
         </div>
+        {communitySection}
+        {newsSection}
       </>
     );
   }
@@ -215,6 +239,8 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
           {newsCard}
         </div>
       </div>
+      {communitySection}
+      {newsSection}
     </>
   );
 }

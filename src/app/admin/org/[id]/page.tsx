@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Flash } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 import { PERMISSIONS } from "@/lib/invite";
-import { PLAN_PRESETS } from "@/lib/services";
+import { getPlans } from "@/lib/plans";
 import { requireStaff } from "@/lib/session";
 import { applyPreset, inviteToOrg, updateOrg, updateOrgServices } from "../../actions";
 import { OrgFields } from "../../OrgFields";
@@ -28,7 +28,8 @@ export default async function OrgDetail({
   ]);
   const on = new Set((enabled ?? []).map((r) => r.service_key as string));
   const groups = ["cliente", "ambos", "colaborador"].map((a) => [a, (catalog ?? []).filter((s) => s.audience === a)] as const);
-  const currentPreset = PLAN_PRESETS.find((p) => p.name === org.plan)?.key;
+  const plans = await getPlans(supabase, true);
+  const currentPreset = org.plan_key ?? plans.find((p) => p.name === org.plan)?.key;
 
   return (
     <>
@@ -53,7 +54,7 @@ export default async function OrgDetail({
                 Aplicar los servicios de un plan
                 <select id="preset" name="preset" defaultValue={currentPreset ?? ""}>
                   <option value="" disabled>Elegí un plan</option>
-                  {PLAN_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.name} ({p.kind === "empresa" ? "empresa" : "comercio"})</option>)}
+                  {plans.map((p) => <option key={p.key} value={p.key}>{p.name} ({p.kind === "empresa" ? "empresa" : "comercio"} · {p.units} UP)</option>)}
                 </select>
               </label>
               <SubmitButton className="btn sec">Aplicar plan</SubmitButton>

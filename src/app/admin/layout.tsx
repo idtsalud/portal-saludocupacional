@@ -6,6 +6,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { profile } = await requireStaff();
   const items: NavItem[] = [
     { href: "/admin", label: "Organizaciones", icon: "users" },
+    { href: "/admin/planes", label: "Planes", icon: "tag" },
     { href: "/admin/pedidos", label: "Pedidos", icon: "clip" },
     { href: "/admin/documentos", label: "Documentos", icon: "doc" },
     { href: "/admin/comunidad", label: "Comunidad", icon: "chat" },

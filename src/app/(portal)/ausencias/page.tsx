@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Icon } from "@/components/Icon";
-import { syncIfStale } from "@/lib/avisos-sync";
+import { prettyStatus } from "@/lib/avisos-sync";
 import { canSeeAbsences, requireOrg } from "@/lib/session";
 import { fmtDateTime } from "@/lib/format";
 
@@ -15,13 +15,11 @@ export default async function Ausencias() {
   const { supabase, org, profile, has } = await requireOrg();
   if (!has("aviso_medico") || !canSeeAbsences(profile)) redirect("/");
 
-  await syncIfStale(10);
-
   const since = new Date();
   since.setMonth(since.getMonth() - 6);
   const { data } = await supabase
     .from("avisos")
-    .select("id, received_at, collaborator, days, certificate_status, status")
+    .select("id, received_at, collaborator, certificate_status, rest_indicated, status")
     .eq("org_id", org.id)
     .gte("received_at", since.toISOString())
     .order("received_at", { ascending: false })
@@ -30,8 +28,8 @@ export default async function Ausencias() {
 
   const today = ymd(new Date());
   const todays = avisos.filter((a) => ymd(new Date(a.received_at)) === today);
-  const active = avisos.filter((a) => /activ|seguim/i.test(a.status ?? ""));
-  const pending = avisos.filter((a) => /^pend/i.test(a.certificate_status ?? ""));
+  const toEvaluate = avisos.filter((a) => /pendiente/i.test(a.status ?? ""));
+  const noCert = avisos.filter((a) => a.certificate_status === "Pendiente");
 
   // Avisos por mes, últimos 6 meses
   const months: { key: string; label: string; count: number }[] = [];
@@ -48,20 +46,20 @@ export default async function Ausencias() {
   const max = Math.max(1, ...months.map((m) => m.count));
   const W = 520, H = 200, pad = 28, bw = 46;
   const gap = (W - pad * 2 - bw * months.length) / (months.length - 1);
-
-  const recent = avisos.slice(0, 30);
-  const tone = (s: string | null) => (/^pend/i.test(s ?? "") ? "warn" : /recib/i.test(s ?? "") ? "ok" : "off");
+  const recent = avisos.slice(0, 40);
 
   return (
     <>
       <div className="head">
-        <h1>Ausencias</h1>
-        <p>Los avisos que tu equipo manda por WhatsApp, ordenados por el asistente de Aviso Médico.</p>
+        <div>
+          <h1>Ausencias</h1>
+          <p>Los avisos que tu equipo manda por WhatsApp a Aviso Médico. Se actualizan cada 10 minutos.</p>
+        </div>
       </div>
       <div className="grid g3">
         <section className="card kpi"><b>{todays.length}</b><span>Avisos de hoy</span></section>
-        <section className="card kpi"><b>{active.length}</b><span>Licencias activas</span></section>
-        <section className="card kpi"><b>{pending.length}</b><span>Certificados pendientes</span></section>
+        <section className="card kpi"><b>{toEvaluate.length}</b><span>Pendientes de evaluación médica</span></section>
+        <section className="card kpi"><b>{noCert.length}</b><span>Sin certificado</span></section>
       </div>
 
       <section className="card">
@@ -69,15 +67,15 @@ export default async function Ausencias() {
         {recent.length > 0 ? (
           <div className="tbl">
             <table>
-              <thead><tr><th>Colaborador</th><th>Aviso</th><th>Días</th><th>Certificado</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Colaborador</th><th>Aviso</th><th>Certificado</th><th>Reposo indicado</th><th>Estado</th></tr></thead>
               <tbody>
                 {recent.map((a) => (
                   <tr key={a.id}>
                     <td><b>{a.collaborator}</b></td>
                     <td className="num">{fmtDateTime(a.received_at)}</td>
-                    <td className="num">{a.days ?? "—"}</td>
-                    <td>{a.certificate_status ? <span className={"chip " + tone(a.certificate_status)}>{a.certificate_status}</span> : "—"}</td>
-                    <td>{a.status ?? "—"}</td>
+                    <td>{a.certificate_status ? <span className={"chip " + (a.certificate_status === "Recibido" ? "ok" : "warn")}>{a.certificate_status}</span> : "—"}</td>
+                    <td>{a.rest_indicated == null ? "—" : a.rest_indicated ? "Sí" : "No"}</td>
+                    <td><span className={"chip " + (/pendiente/i.test(a.status ?? "") ? "warn" : "info")}>{prettyStatus(a.status)}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -88,7 +86,7 @@ export default async function Ausencias() {
         )}
         <p className="note" style={{ marginTop: 12 }}>
           <Icon name="shield" />
-          <span>RR.HH. ve el estado, los días y si llegó el certificado. El diagnóstico lo ve solo el equipo médico.</span>
+          <span>RR.HH. ve el estado, si hay certificado y si se indicó reposo. El motivo y el diagnóstico los ve solo el equipo médico.</span>
         </p>
       </section>
 

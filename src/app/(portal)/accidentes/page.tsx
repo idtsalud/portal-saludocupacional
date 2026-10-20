@@ -29,8 +29,10 @@ export default async function Accidentes() {
       <div className="grid g2">
         <section className="card">
           <span className="tabs-label"><Icon name="sun" /> En horario de sede</span>
-          <h2 style={{ marginBottom: 6 }}>Lunes a viernes, de 7:30 a 16:30</h2>
-          <p className="muted" style={{ marginBottom: 18 }}>Atendemos al colaborador en nuestras sedes de Campana o Zárate.</p>
+          <h2 style={{ marginBottom: 6 }}>Lunes a viernes y sábados a la mañana</h2>
+          <p className="muted" style={{ marginBottom: 18 }}>
+            Zárate: lunes a viernes de 7 a 19 y sábados de 8 a 12. Campana: lunes a viernes de 7:30 a 16:30.
+          </p>
           <ol className="steps">
             <li><div><b>Dale primeros auxilios</b><span>Y que no siga trabajando hasta que lo vea un médico.</span></div></li>
             <li><div><b>Avisá a tu ART</b><span>Hacé la denuncia del accidente y pedí el número de siniestro.</span></div></li>
@@ -41,7 +43,7 @@ export default async function Accidentes() {
 
         <section className="card">
           <span className="tabs-label"><Icon name="moon" /> Fuera de horario</span>
-          <h2 style={{ marginBottom: 6 }}>Fines de semana, feriados y de noche</h2>
+          <h2 style={{ marginBottom: 6 }}>Sábados a la tarde, domingos, feriados y de noche</h2>
           <p className="muted" style={{ marginBottom: 18 }}>Las sedes están cerradas, pero la ART atiende las 24 horas.</p>
           <ol className="steps red">
             <li><div><b>Llamá a la línea 24 horas de tu ART</b><span>Está en el afiche obligatorio de la ART y en su credencial. Te indican a qué guardia o prestador llevarlo.</span></div></li>
