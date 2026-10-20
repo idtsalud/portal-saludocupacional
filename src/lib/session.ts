@@ -63,13 +63,22 @@ export const getSession = cache(async () => {
   return { supabase, user, profile, org, services, has };
 });
 
-/** Para pantallas de una organización: exige que el usuario tenga una asignada. */
+/** Para pantallas del cliente (empresa o comercio). Un colaborador va a su propio portal. */
 export async function requireOrg() {
   const s = await getSession();
   if (!s.org || !s.profile) {
     if (s.profile?.is_idt_staff) redirect("/admin");
     redirect("/sin-acceso");
   }
+  if (s.profile.user_type === "colaborador") redirect("/colaborador");
+  return { ...s, org: s.org, profile: s.profile };
+}
+
+/** Para el portal del colaborador. */
+export async function requireColaborador() {
+  const s = await getSession();
+  if (!s.org || !s.profile) redirect("/sin-acceso");
+  if (s.profile.user_type !== "colaborador") redirect("/");
   return { ...s, org: s.org, profile: s.profile };
 }
 

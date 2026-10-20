@@ -5,18 +5,18 @@ import { canSeeAbsences, requireOrg } from "@/lib/session";
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const { org, profile, has } = await requireOrg();
 
+  const comercio = org.kind === "comercio";
   const items: NavItem[] = [{ href: "/", label: "Inicio", icon: "home" }];
   if (has("aviso_medico") && canSeeAbsences(profile)) items.push({ href: "/ausencias", label: "Ausencias", icon: "pulse" });
   items.push(
     { href: "/gestiones", label: "Turnos y estudios", icon: "clip" },
     { href: "/accidentes", label: "Ante un accidente", icon: "alert" },
+    { href: "/usuarios", label: comercio ? "Mis empleados" : "Colaboradores y usuarios", icon: "users" },
     { href: "/documentos", label: "Documentos", icon: "doc" },
     { href: "/historia", label: "Historia clínica", icon: "heart" },
-    { href: "/academia", label: "Academia IDT", icon: "cap" },
-    { href: "/equipo", label: "Mi equipo IDT", icon: "team" },
-    { href: "/usuarios", label: "Usuarios", icon: "users" },
-    { href: "/sedes", label: "Sedes", icon: "pin" },
   );
+  if (!comercio || has("academia")) items.push({ href: "/academia", label: "Academia IDT", icon: "cap" });
+  items.push({ href: "/equipo", label: "Mi equipo IDT", icon: "team" }, { href: "/sedes", label: "Sedes", icon: "pin" });
   if (profile.is_idt_staff) items.push({ href: "/admin", label: "Administración IDT", icon: "gear" });
 
   const detail = `${org.plan}${org.staff_count ? ` · ${org.staff_count} personas` : ""}`;
