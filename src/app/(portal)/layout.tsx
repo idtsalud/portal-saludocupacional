@@ -3,10 +3,10 @@ import { logout } from "@/app/login/actions";
 import { canSeeAbsences, requireOrg } from "@/lib/session";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
-  const { org, profile } = await requireOrg();
+  const { org, profile, has } = await requireOrg();
 
   const items: NavItem[] = [{ href: "/", label: "Inicio", icon: "home" }];
-  if (org.has_aviso_medico && canSeeAbsences(profile)) items.push({ href: "/ausencias", label: "Ausencias", icon: "pulse" });
+  if (has("aviso_medico") && canSeeAbsences(profile)) items.push({ href: "/ausencias", label: "Ausencias", icon: "pulse" });
   items.push(
     { href: "/gestiones", label: "Turnos y estudios", icon: "clip" },
     { href: "/accidentes", label: "Ante un accidente", icon: "alert" },

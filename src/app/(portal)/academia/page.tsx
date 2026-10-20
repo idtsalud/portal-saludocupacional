@@ -3,7 +3,7 @@ import { requireOrg } from "@/lib/session";
 import { waLink } from "@/lib/format";
 
 export default async function Academia() {
-  const { org } = await requireOrg();
+  const { org, has } = await requireOrg();
   const wa = waLink("5491126320855");
   const msg = encodeURIComponent(`Hola, soy de ${org.name}. Quiero consultar por capacitaciones de la Academia IDT.`);
   return (
@@ -18,7 +18,7 @@ export default async function Academia() {
         <section className="card"><h3>Online</h3><p className="small muted" style={{ marginTop: 6 }}>Curso, evaluación y certificado desde el celular. Para equipos en viaje o en turnos.</p></section>
       </div>
       <section className="card" style={{ display: "grid", gap: 12 }}>
-        <h2>{org.has_academia ? "Pedí una capacitación" : "Sumá la Academia a tu plan"}</h2>
+        <h2>{has("academia") ? "Pedí una capacitación" : "Sumá la Academia a tu plan"}</h2>
         <p className="muted">Contanos qué tema, para cuántas personas y en qué modalidad, y te armamos la propuesta.</p>
         {wa && <div><a className="btn pri" href={`${wa}?text=${msg}`} target="_blank" rel="noopener noreferrer"><Icon name="chat" />Escribir por WhatsApp</a></div>}
       </section>

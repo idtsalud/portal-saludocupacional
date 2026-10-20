@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { ServiceKey } from "@/lib/services";
 
 export type Organization = {
   id: string;
@@ -24,6 +25,7 @@ export type Profile = {
   role_title: string;
   permission: "admin" | "todo" | "pedidos" | "reportes";
   is_idt_staff: boolean;
+  user_type: "cliente" | "colaborador";
 };
 
 /** Usuario, perfil y organización de la sesión actual. Redirige al login si no hay sesión. */
@@ -36,21 +38,29 @@ export const getSession = cache(async () => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, org_id, full_name, role_title, permission, is_idt_staff")
+    .select("id, org_id, full_name, role_title, permission, is_idt_staff, user_type")
     .eq("id", user.id)
     .single<Profile>();
 
   let org: Organization | null = null;
+  const services = new Set<string>();
   if (profile?.org_id) {
-    const { data } = await supabase
-      .from("organizations")
-      .select("id, name, kind, plan, plan_units, staff_count, referente_medico, has_aviso_medico, has_ruta_saludable, has_academia, has_campanas")
-      .eq("id", profile.org_id)
-      .single<Organization>();
+    const [{ data }, { data: svc }] = await Promise.all([
+      supabase
+        .from("organizations")
+        .select("id, name, kind, plan, plan_units, staff_count, referente_medico, has_aviso_medico, has_ruta_saludable, has_academia, has_campanas")
+        .eq("id", profile.org_id)
+        .single<Organization>(),
+      supabase.from("org_services").select("service_key").eq("org_id", profile.org_id),
+    ]);
     org = data;
+    (svc ?? []).forEach((s) => services.add(s.service_key as string));
   }
 
-  return { supabase, user, profile, org };
+  /** ¿La organización tiene habilitado este servicio? */
+  const has = (key: ServiceKey) => services.has(key);
+
+  return { supabase, user, profile, org, services, has };
 });
 
 /** Para pantallas de una organización: exige que el usuario tenga una asignada. */
@@ -70,4 +80,4 @@ export async function requireStaff() {
 }
 
 export const canRequest = (p: Profile) => ["admin", "todo", "pedidos"].includes(p.permission);
-export const canSeeAbsences = (p: Profile) => p.permission !== "pedidos";
+export const canSeeAbsences = (p: Profile) => p.user_type === "cliente" && p.permission !== "pedidos";

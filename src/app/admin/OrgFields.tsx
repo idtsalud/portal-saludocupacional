@@ -37,10 +37,6 @@ export function OrgFields({ org = {} }: { org?: Org }) {
         Nombre en la planilla de Aviso Médico
         <input id="sheet_company_key" name="sheet_company_key" defaultValue={org.sheet_company_key ?? undefined} placeholder="Exactamente como figura en la columna Empresa" />
       </label>
-      <label className="check"><input type="checkbox" name="has_aviso_medico" defaultChecked={org.has_aviso_medico} /> Aviso Médico</label>
-      <label className="check"><input type="checkbox" name="has_ruta_saludable" defaultChecked={org.has_ruta_saludable} /> Ruta Saludable</label>
-      <label className="check"><input type="checkbox" name="has_academia" defaultChecked={org.has_academia} /> Academia IDT</label>
-      <label className="check"><input type="checkbox" name="has_campanas" defaultChecked={org.has_campanas ?? true} /> Campañas de salud</label>
     </>
   );
 }

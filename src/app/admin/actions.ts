@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/session";
 import { inviteUser, PERMISSIONS } from "@/lib/invite";
 import { syncAvisos } from "@/lib/avisos-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { presetByKey } from "@/lib/services";
 
 const str = (f: FormData, k: string, max = 200) => String(f.get(k) ?? "").trim().slice(0, max);
 
@@ -21,21 +22,64 @@ function orgFields(f: FormData) {
     staff_count: Number.isFinite(staff) ? staff : null,
     referente_medico: str(f, "referente_medico", 120) || null,
     sheet_company_key: str(f, "sheet_company_key", 160) || null,
-    has_aviso_medico: f.get("has_aviso_medico") === "on",
-    has_ruta_saludable: f.get("has_ruta_saludable") === "on",
-    has_academia: f.get("has_academia") === "on",
-    has_campanas: f.get("has_campanas") === "on",
   };
+}
+
+/** Reemplaza los servicios habilitados de una organización. */
+async function setServices(supabase: Awaited<ReturnType<typeof requireStaff>>["supabase"], orgId: string, keys: string[]) {
+  const { data: current } = await supabase.from("org_services").select("service_key").eq("org_id", orgId);
+  const now = new Set((current ?? []).map((r) => r.service_key as string));
+  const want = new Set(keys);
+  const toAdd = [...want].filter((k) => !now.has(k)).map((k) => ({ org_id: orgId, service_key: k }));
+  const toRemove = [...now].filter((k) => !want.has(k));
+  if (toAdd.length) {
+    const { error } = await supabase.from("org_services").insert(toAdd);
+    if (error) return error;
+  }
+  if (toRemove.length) {
+    const { error } = await supabase.from("org_services").delete().eq("org_id", orgId).in("service_key", toRemove);
+    if (error) return error;
+  }
+  return null;
 }
 
 export async function createOrg(f: FormData) {
   const { supabase } = await requireStaff();
-  const fields = orgFields(f);
-  if (!fields.name || !fields.plan) redirect("/admin?error=datos");
-  const { data, error } = await supabase.from("organizations").insert(fields).select("id").single();
+  const preset = presetByKey(str(f, "preset"));
+  if (!preset) redirect("/admin?error=datos");
+  const staff = parseInt(str(f, "staff_count"), 10);
+  const name = str(f, "name", 160);
+  if (!name) redirect("/admin?error=datos");
+  const { data, error } = await supabase
+    .from("organizations")
+    .insert({ name, kind: preset.kind, plan: preset.name, plan_units: preset.units, staff_count: Number.isFinite(staff) ? staff : null })
+    .select("id")
+    .single();
   if (error || !data) redirect("/admin?error=fallo");
+  if (await setServices(supabase, data.id, preset.services)) redirect(`/admin/org/${data.id}?error=fallo`);
   revalidatePath("/admin");
   redirect(`/admin/org/${data.id}?ok=org`);
+}
+
+export async function updateOrgServices(f: FormData) {
+  const { supabase } = await requireStaff();
+  const id = str(f, "id");
+  if (!id) redirect("/admin?error=datos");
+  const keys = f.getAll("svc").map(String);
+  if (await setServices(supabase, id, keys)) redirect(`/admin/org/${id}?error=fallo`);
+  revalidatePath(`/admin/org/${id}`);
+  redirect(`/admin/org/${id}?ok=servicios`);
+}
+
+export async function applyPreset(f: FormData) {
+  const { supabase } = await requireStaff();
+  const id = str(f, "id");
+  const preset = presetByKey(str(f, "preset"));
+  if (!id || !preset) redirect(`/admin/org/${id}?error=datos`);
+  const { error } = await supabase.from("organizations").update({ kind: preset.kind, plan: preset.name, plan_units: preset.units }).eq("id", id);
+  if (error || (await setServices(supabase, id, preset.services))) redirect(`/admin/org/${id}?error=fallo`);
+  revalidatePath(`/admin/org/${id}`);
+  redirect(`/admin/org/${id}?ok=servicios`);
 }
 
 export async function updateOrg(f: FormData) {

@@ -4,7 +4,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { requireStaff } from "@/lib/session";
 import { fmtDateTime } from "@/lib/format";
 import { createOrg, runSync } from "./actions";
-import { OrgFields } from "./OrgFields";
+import { PLAN_PRESETS } from "@/lib/services";
 
 export default async function AdminHome({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -45,7 +45,22 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
         <section className="card">
           <h2>Nueva organización</h2>
           <form className="f" action={createOrg}>
-            <OrgFields />
+            <label htmlFor="name">Nombre<input id="name" name="name" required maxLength={160} /></label>
+            <div className="two">
+              <label htmlFor="preset">
+                Plan
+                <select id="preset" name="preset" defaultValue="comercio">
+                  <optgroup label="Comercios">
+                    {PLAN_PRESETS.filter((p) => p.kind === "comercio").map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+                  </optgroup>
+                  <optgroup label="Empresas">
+                    {PLAN_PRESETS.filter((p) => p.kind === "empresa").map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+                  </optgroup>
+                </select>
+              </label>
+              <label htmlFor="staff_count">Cantidad de personas<input id="staff_count" name="staff_count" type="number" min={0} /></label>
+            </div>
+            <p className="small muted">Se cargan los servicios del plan. Después los podés ajustar uno por uno en la ficha del cliente.</p>
             <SubmitButton>Crear organización</SubmitButton>
           </form>
         </section>

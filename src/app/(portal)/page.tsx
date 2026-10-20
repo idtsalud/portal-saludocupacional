@@ -10,15 +10,16 @@ const ymd = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).form
 
 export default async function Inicio({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const { supabase, org, profile } = await requireOrg();
+  const { supabase, org, profile, has } = await requireOrg();
 
-  const [{ data: news }, { data: campaigns }] = await Promise.all([
+  const [{ data: news }, { data: campaigns }, { data: catalog }] = await Promise.all([
     supabase.from("news").select("id, title, body").order("published_at", { ascending: false }).limit(3),
     supabase.from("documents").select("id, title, description").eq("category", "campana").order("created_at", { ascending: false }).limit(1),
+    supabase.from("services").select("key, name, audience").eq("active", true).in("audience", ["cliente", "ambos"]).order("sort"),
   ]);
 
   let absent: { today: number; active: number; pendingCert: number } | null = null;
-  if (org.has_aviso_medico && canSeeAbsences(profile)) {
+  if (has("aviso_medico") && canSeeAbsences(profile)) {
     const { data: avisos } = await supabase
       .from("avisos")
       .select("received_at, status, certificate_status")
@@ -34,16 +35,14 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
     };
   }
 
-  const services: [string, boolean, string][] = [
-    ["Médico del trabajo referente", true, "Incluido"],
-    ["Atención en sedes y telemedicina", true, org.kind === "empresa" ? "Con UP" : "Con prestaciones"],
-    ["Precio preferencial en estudios médicos", true, "Incluido"],
-    ["Seguimiento de licencias y accidentes", true, "Incluido"],
-    ["Aviso Médico por WhatsApp", org.has_aviso_medico, org.has_aviso_medico ? "Activo" : "Sumar"],
-    ["Ruta Saludable", org.has_ruta_saludable, org.has_ruta_saludable ? "Activo" : "Sumar"],
-    ["Campañas de salud", org.has_campanas, org.has_campanas ? "Incluido" : "Sumar"],
-    ["Academia IDT", org.has_academia, org.has_academia ? "Activo" : "Consultar"],
-  ];
+  // Primero lo contratado, después lo que se puede sumar
+  const services: [string, boolean, string][] = (catalog ?? [])
+    .map((s): [string, boolean, string] => {
+      const on = has(s.key as never);
+      const label = !on ? "Sumar" : s.key === "atencion_sedes" || s.key === "telemedicina" ? (org.kind === "empresa" ? "Con UP" : "Con prestaciones") : "Incluido";
+      return [s.name as string, on, label];
+    })
+    .sort((a, b) => Number(b[1]) - Number(a[1]));
 
   const qa = [
     ["/gestiones", "clip", "Pedir turno o estudio", "Turnos, preocupacionales y cotizaciones", false],

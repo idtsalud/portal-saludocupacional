@@ -12,8 +12,8 @@ const ym = (d: Date) => ymd(d).slice(0, 7);
 const MONTH = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, month: "short" });
 
 export default async function Ausencias() {
-  const { supabase, org, profile } = await requireOrg();
-  if (!org.has_aviso_medico || !canSeeAbsences(profile)) redirect("/");
+  const { supabase, org, profile, has } = await requireOrg();
+  if (!has("aviso_medico") || !canSeeAbsences(profile)) redirect("/");
 
   await syncIfStale(10);
 

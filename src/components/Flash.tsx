@@ -4,6 +4,7 @@ const MESSAGES: Record<string, string> = {
   invitado: "Invitación enviada. La persona crea su contraseña desde el correo.",
   clave: "Contraseña guardada. Ya estás dentro del portal.",
   org: "Organización guardada.",
+  servicios: "Servicios actualizados. El cliente ya los ve en su portal.",
   estado: "Estado actualizado.",
   doc: "Documento subido.",
   sync: "Avisos sincronizados.",

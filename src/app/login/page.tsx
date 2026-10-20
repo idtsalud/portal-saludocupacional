@@ -19,13 +19,13 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <h1>
           Todo tu servicio de salud ocupacional, <em>en un solo lugar.</em>
         </h1>
-        <p>Pedí exámenes, seguí cada pedido, descargá tus documentos y hablá directo con tu equipo IDT. Cada empresa ve solo lo suyo.</p>
+        <p>Gestioná turnos y estudios, descargá tus documentos y hablá directo con tu médico referente y tu equipo IDT. Cada empresa ve solo lo suyo.</p>
         <ul>
           {[
-            "Pedidos de exámenes y turnos con estado visible",
-            "Certificado de servicio, campañas y kit de Aviso Médico",
-            "Acceso a la historia clínica laboral",
-            "Tu médico referente y tu equipo IDT, con nombre",
+            "Turnos para consultas, preocupacionales, periódicos y estudios",
+            "Certificados, campañas de salud y kits para descargar",
+            "Qué hacer ante un accidente, también fines de semana",
+            "Historia clínica laboral, Academia IDT y tu equipo con nombre",
           ].map((t) => (
             <li key={t}>
               <Icon name="check" />
