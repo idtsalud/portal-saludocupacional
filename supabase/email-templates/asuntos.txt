@@ -1,0 +1,6 @@
+invitar-usuario: Tu acceso al Portal SaludOcupacional
+restablecer-contrasena: Creá una contraseña nueva para el portal
+confirmar-registro: Confirmá tu correo en el Portal SaludOcupacional
+enlace-de-acceso: Tu enlace para entrar al portal
+cambio-de-correo: Confirmá tu nuevo correo
+verificar-identidad: Tu código de verificación
