@@ -1,104 +1,81 @@
-import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
-import { Flash } from "@/components/Flash";
-import { SubmitButton } from "@/components/SubmitButton";
-import { canRequest, requireOrg } from "@/lib/session";
-import { fmtDateTime } from "@/lib/format";
+import { Icon } from "@/components/Icon";
+import { requireOrg } from "@/lib/session";
+import { CONTACTO, waComercial } from "@/lib/contacto";
 
-const TYPES = ["Accidente de trabajo", "Accidente in itinere", "Enfermedad profesional"];
-
-async function createIncident(formData: FormData) {
-  "use server";
-  const { supabase, org, profile, user } = await requireOrg();
-  if (!canRequest(profile)) redirect("/accidentes?error=permiso");
-  const collaborator = String(formData.get("collaborator") ?? "").trim().slice(0, 160);
-  const type = String(formData.get("type") ?? "");
-  if (!collaborator || !TYPES.includes(type)) redirect("/accidentes?error=datos");
-  const occurred = String(formData.get("occurred_at") ?? "");
-  const { error } = await supabase.from("incidents").insert({
-    org_id: org.id,
-    created_by: user.id,
-    collaborator,
-    type,
-    occurred_at: occurred ? new Date(occurred + "-03:00").toISOString() : null,
-    art_claim: String(formData.get("art_claim") ?? "").trim().slice(0, 60) || null,
-    description: String(formData.get("description") ?? "").trim().slice(0, 2000) || null,
-  });
-  if (error) redirect("/accidentes?error=fallo");
-  revalidatePath("/accidentes");
-  redirect("/accidentes?ok=caso");
-}
-
-export default async function Accidentes({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const sp = await searchParams;
-  const { supabase, org, profile } = await requireOrg();
-  const { data: incidents } = await supabase
-    .from("incidents")
-    .select("id, collaborator, type, occurred_at, status")
-    .eq("org_id", org.id)
-    .order("created_at", { ascending: false })
-    .limit(20);
+export default async function Accidentes() {
+  const { org } = await requireOrg();
+  const aviso = waComercial(
+    `Hola, soy de ${org.name}. Quiero avisar un accidente de trabajo.\nNombre y DNI del colaborador:\nFecha y hora:\nQué pasó:\nDónde lo atendieron:\nN.º de siniestro de la ART (si ya lo tenés):`,
+  );
 
   return (
     <>
       <div className="head">
-        <h1>Accidentes y enfermedades profesionales</h1>
-        <p>Qué hacer y a quién llamar, siempre a mano.</p>
-      </div>
-      <Flash ok={sp.ok} error={sp.error} />
-      <div className="emer">
-        <h2>Si alguien se lastimó trabajando</h2>
-        <div className="nums">
-          <div className="n"><small>Teléfono IDT</small><b>11 2120-4550</b></div>
-          <div className="n"><small>WhatsApp</small><b>11 2632-0855</b></div>
-          <div className="n"><small>Sede Zárate</small><b>R. Noya 670</b></div>
+        <div>
+          <h1>Qué hacer ante un accidente</h1>
+          <p>El protocolo para cuando un colaborador se lastima trabajando o en el camino al trabajo, en cualquier día y horario.</p>
         </div>
-        <ol className="steps">
-          <li>Si es una emergencia, llamá primero al servicio de emergencias.</li>
-          <li>Avisá a tu ART y pedí el número de siniestro.</li>
-          <li>Llamanos o escribinos: coordinamos la atención en la sede.</li>
-          <li>Registrá el caso abajo para que el médico referente haga el seguimiento.</li>
-        </ol>
       </div>
+
+      <section className="emer">
+        <h2>Si hay riesgo de vida, primero llamá a emergencias</h2>
+        <div className="nums">
+          <div className="n"><small>Emergencias médicas (SAME)</small><b>107</b></div>
+          <div className="n"><small>Emergencias</small><b>911</b></div>
+        </div>
+        <p className="small">Después seguí los pasos de abajo según el día y el horario.</p>
+      </section>
+
       <div className="grid g2">
         <section className="card">
-          <h2>Registrar un caso</h2>
-          {canRequest(profile) ? (
-            <form className="f" action={createIncident}>
-              <div className="two">
-                <label htmlFor="collaborator">Colaborador<input id="collaborator" name="collaborator" required maxLength={160} /></label>
-                <label htmlFor="occurred_at">Fecha y hora<input id="occurred_at" name="occurred_at" type="datetime-local" /></label>
-              </div>
-              <div className="two">
-                <label htmlFor="type">
-                  Tipo
-                  <select id="type" name="type">{TYPES.map((t) => <option key={t}>{t}</option>)}</select>
-                </label>
-                <label htmlFor="art_claim">N.º de siniestro ART<input id="art_claim" name="art_claim" placeholder="Si ya lo tenés" /></label>
-              </div>
-              <label htmlFor="description">Qué pasó<textarea id="description" name="description" maxLength={2000} /></label>
-              <SubmitButton>Registrar caso</SubmitButton>
-            </form>
-          ) : (
-            <p className="muted">Tu usuario no puede registrar casos. Pedíselo a quien administra el portal en tu empresa.</p>
-          )}
+          <span className="tabs-label"><Icon name="sun" /> En horario de sede</span>
+          <h2 style={{ marginBottom: 6 }}>Lunes a viernes, de 7:30 a 16:30</h2>
+          <p className="muted" style={{ marginBottom: 18 }}>Atendemos al colaborador en nuestras sedes de Campana o Zárate.</p>
+          <ol className="steps">
+            <li><div><b>Dale primeros auxilios</b><span>Y que no siga trabajando hasta que lo vea un médico.</span></div></li>
+            <li><div><b>Avisá a tu ART</b><span>Hacé la denuncia del accidente y pedí el número de siniestro.</span></div></li>
+            <li><div><b>Escribinos o llamanos</b><span>Coordinamos la atención en la sede ese mismo día.</span></div></li>
+            <li><div><b>Mandalo con su DNI</b><span>Y con el número de siniestro si ya lo tenés.</span></div></li>
+          </ol>
         </section>
+
         <section className="card">
-          <h2>Casos registrados</h2>
-          {incidents && incidents.length > 0 ? (
-            <div className="list">
-              {incidents.map((i) => (
-                <div className="li" key={i.id}>
-                  <div className="grow"><b>{i.collaborator}</b><span>{i.type} · {fmtDateTime(i.occurred_at)}</span></div>
-                  <span className={"chip " + (i.status === "cerrado" ? "ok" : "warn")}>
-                    {i.status === "registrado" ? "Registrado" : i.status === "en_seguimiento" ? "En seguimiento" : "Cerrado"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="muted">No hay casos registrados.</p>
-          )}
+          <span className="tabs-label"><Icon name="moon" /> Fuera de horario</span>
+          <h2 style={{ marginBottom: 6 }}>Fines de semana, feriados y de noche</h2>
+          <p className="muted" style={{ marginBottom: 18 }}>Las sedes están cerradas, pero la ART atiende las 24 horas.</p>
+          <ol className="steps red">
+            <li><div><b>Llamá a la línea 24 horas de tu ART</b><span>Está en el afiche obligatorio de la ART y en su credencial. Te indican a qué guardia o prestador llevarlo.</span></div></li>
+            <li><div><b>Si no te atienden o es urgente</b><span>Llevalo a la guardia más cercana y avisá que es un accidente de trabajo cubierto por la ART.</span></div></li>
+            <li><div><b>Guardá todos los papeles</b><span>Constancia de atención, estudios, recetas y certificado con los días de reposo.</span></div></li>
+            <li><div><b>Dejanos el aviso por WhatsApp</b><span>Aunque estemos cerrados. El primer día hábil el médico referente toma el caso y coordina el control.</span></div></li>
+          </ol>
+        </section>
+      </div>
+
+      <div className="split">
+        <section className="card">
+          <h2>Datos para tener a mano</h2>
+          <ul className="checklist">
+            {[
+              "Nombre, DNI y CUIL del colaborador",
+              "Fecha, hora y lugar exacto del accidente",
+              "Cómo pasó y qué parte del cuerpo se lastimó",
+              "Nombre de la ART y número de contrato o póliza",
+              "Número de siniestro, cuando la ART te lo dé",
+              "Si fue en el camino entre la casa y el trabajo (in itinere): el recorrido y el horario",
+            ].map((t) => (
+              <li key={t}><Icon name="check" /><span>{t}</span></li>
+            ))}
+          </ul>
+        </section>
+        <section className="card" style={{ display: "grid", gap: 16, alignContent: "start" }}>
+          <h2>Avisale a IDT</h2>
+          <p className="muted">El mensaje sale con los datos que necesitamos para hacer el seguimiento.</p>
+          <a className="btn wa" href={aviso} target="_blank" rel="noopener noreferrer"><Icon name="whatsapp" />Avisar el accidente por WhatsApp</a>
+          <div className="nums">
+            <div className="n"><small>WhatsApp</small><b>{CONTACTO.whatsappComercialTexto}</b></div>
+            <div className="n"><small>Teléfono (horario de sede)</small><b>{CONTACTO.telefonoIdt}</b></div>
+          </div>
         </section>
       </div>
     </>

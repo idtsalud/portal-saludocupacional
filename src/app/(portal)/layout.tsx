@@ -8,8 +8,8 @@ export default async function PortalLayout({ children }: { children: React.React
   const items: NavItem[] = [{ href: "/", label: "Inicio", icon: "home" }];
   if (org.has_aviso_medico && canSeeAbsences(profile)) items.push({ href: "/ausencias", label: "Ausencias", icon: "pulse" });
   items.push(
-    { href: "/gestiones", label: "Gestiones", icon: "clip" },
-    { href: "/accidentes", label: "Accidentes y EP", icon: "alert" },
+    { href: "/gestiones", label: "Turnos y estudios", icon: "clip" },
+    { href: "/accidentes", label: "Ante un accidente", icon: "alert" },
     { href: "/documentos", label: "Documentos", icon: "doc" },
     { href: "/historia", label: "Historia clínica", icon: "heart" },
     { href: "/academia", label: "Academia IDT", icon: "cap" },

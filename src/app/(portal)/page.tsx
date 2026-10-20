@@ -1,15 +1,18 @@
 import Link from "next/link";
+import { Benefit } from "@/components/Benefit";
 import { Flash } from "@/components/Flash";
 import { Icon } from "@/components/Icon";
 import { canSeeAbsences, requireOrg } from "@/lib/session";
-import { firstName, fmtLongToday, STATUS } from "@/lib/format";
+import { firstName, fmtLongToday } from "@/lib/format";
+
+const TZ = "America/Argentina/Buenos_Aires";
+const ymd = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
 
 export default async function Inicio({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const { supabase, org, profile } = await requireOrg();
 
-  const [{ data: requests }, { data: news }, { data: campaigns }] = await Promise.all([
-    supabase.from("requests").select("id, type, collaborator, status, status_detail").eq("org_id", org.id).order("created_at", { ascending: false }).limit(4),
+  const [{ data: news }, { data: campaigns }] = await Promise.all([
     supabase.from("news").select("id, title, body").order("published_at", { ascending: false }).limit(3),
     supabase.from("documents").select("id, title, description").eq("category", "campana").order("created_at", { ascending: false }).limit(1),
   ]);
@@ -22,18 +25,19 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
       .eq("org_id", org.id)
       .order("received_at", { ascending: false })
       .limit(500);
-    const todayAR = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
     const list = avisos ?? [];
+    const today = ymd(new Date());
     absent = {
-      today: list.filter((a) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(a.received_at)) === todayAR).length,
-      active: list.filter((a) => (a.status ?? "").toLowerCase().startsWith("activ") || (a.status ?? "").toLowerCase().includes("seguimiento")).length,
-      pendingCert: list.filter((a) => (a.certificate_status ?? "").toLowerCase().startsWith("pend")).length,
+      today: list.filter((a) => ymd(new Date(a.received_at)) === today).length,
+      active: list.filter((a) => /activ|seguim/i.test(a.status ?? "")).length,
+      pendingCert: list.filter((a) => /^pend/i.test(a.certificate_status ?? "")).length,
     };
   }
 
   const services: [string, boolean, string][] = [
     ["Médico del trabajo referente", true, "Incluido"],
     ["Atención en sedes y telemedicina", true, org.kind === "empresa" ? "Con UP" : "Con prestaciones"],
+    ["Precio preferencial en estudios médicos", true, "Incluido"],
     ["Seguimiento de licencias y accidentes", true, "Incluido"],
     ["Aviso Médico por WhatsApp", org.has_aviso_medico, org.has_aviso_medico ? "Activo" : "Sumar"],
     ["Ruta Saludable", org.has_ruta_saludable, org.has_ruta_saludable ? "Activo" : "Sumar"],
@@ -42,38 +46,22 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
   ];
 
   const qa = [
-    ["/gestiones", "clip", "Pedir un examen o turno", "Preocupacional, periódico, consulta", false],
-    ["/accidentes", "alert", "Avisar un accidente", "A quién llamar y qué hacer", true],
-    ["/documentos", "doc", "Descargar documentos", "Certificado, campañas, kit", false],
-    ["/equipo", "team", "Hablar con mi equipo", "Coordinación, comercial, médicos", false],
+    ["/gestiones", "clip", "Pedir turno o estudio", "Turnos, preocupacionales y cotizaciones", false],
+    ["/accidentes", "alert", "Hubo un accidente", "Qué hacer, también fines de semana", true],
+    ["/documentos", "doc", "Mis documentos", "Certificado, campañas y kits", false],
+    ["/equipo", "team", "Hablar con mi equipo", "Comercial, coordinación y médicos", false],
   ] as const;
 
   return (
     <>
-      <div className="head row-h" style={{ alignItems: "flex-end", marginBottom: 0 }}>
+      <div className="head">
         <div>
           <h1>Hola{profile.full_name ? `, ${firstName(profile.full_name)}` : ""}</h1>
-          <p>
-            {org.name} · {org.plan}
-          </p>
+          <p>{org.name} · {org.plan}</p>
         </div>
-        <span className="small muted" style={{ textTransform: "capitalize" }}>{fmtLongToday()}</span>
+        <span className="date small muted">{fmtLongToday()}</span>
       </div>
       <Flash ok={sp.ok} error={sp.error} />
-
-      {absent && (
-        <section className="card">
-          <div className="row-h">
-            <h2>Ausencias</h2>
-            <Link className="small" href="/ausencias">Ver detalle</Link>
-          </div>
-          <div className="grid g3">
-            <div className="kpi"><b>{absent.today}</b><span>Avisos de hoy</span></div>
-            <div className="kpi"><b>{absent.active}</b><span>Licencias activas</span></div>
-            <div className="kpi"><b>{absent.pendingCert}</b><span>Certificados pendientes</span></div>
-          </div>
-        </section>
-      )}
 
       <div className="grid g4">
         {qa.map(([href, icon, title, sub, alert]) => (
@@ -85,35 +73,29 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
         ))}
       </div>
 
-      <div className="grid g2">
+      <Benefit orgName={org.name} />
+
+      {absent && (
         <section className="card">
           <div className="row-h">
-            <h2>Pedidos en curso</h2>
-            <Link className="small" href="/gestiones">Ver todos</Link>
+            <h2>Ausencias de tu equipo</h2>
+            <Link href="/ausencias">Ver detalle</Link>
           </div>
-          {requests && requests.length > 0 ? (
-            <div className="list">
-              {requests.map((r) => (
-                <div className="li" key={r.id}>
-                  <div className="grow">
-                    <b>{r.type}</b>
-                    <span>{r.collaborator}{r.status_detail ? ` · ${r.status_detail}` : ""}</span>
-                  </div>
-                  <span className={"chip " + (STATUS[r.status]?.tone ?? "off")}>{STATUS[r.status]?.label ?? r.status}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="muted">Todavía no hay pedidos. <Link href="/gestiones">Hacé el primero</Link>.</p>
-          )}
+          <div className="kpis">
+            <div className="kpi"><b>{absent.today}</b><span>Avisos de hoy</span></div>
+            <div className="kpi"><b>{absent.active}</b><span>Licencias activas</span></div>
+            <div className="kpi"><b>{absent.pendingCert}</b><span>Certificados pendientes</span></div>
+          </div>
         </section>
+      )}
 
+      <div className="split">
         <section className="card">
           <div className="row-h">
             <h2>Tu servicio</h2>
             <span className="chip info">{org.plan}</span>
           </div>
-          <p className="small muted" style={{ marginBottom: 12 }}>
+          <p className="small muted" style={{ marginBottom: 16 }}>
             {org.plan_units} {org.kind === "empresa" ? "UP" : "prestaciones"} por mes. Se renueva el 1 de cada mes.
             {org.referente_medico ? ` Médico referente: ${org.referente_medico}.` : ""}
           </p>
@@ -126,35 +108,32 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
             ))}
           </div>
         </section>
-      </div>
 
-      <div className="grid g2">
-        <section className="card">
-          <h2>Campaña del mes</h2>
-          {campaigns && campaigns[0] ? (
-            <div className="list">
-              <div className="li">
-                <div className="grow">
-                  <b>{campaigns[0].title}</b>
-                  <span>{campaigns[0].description}</span>
+        <div className="grid" style={{ alignContent: "start" }}>
+          <section className="card">
+            <h2>Campaña del mes</h2>
+            {campaigns && campaigns[0] ? (
+              <div className="list">
+                <div className="li">
+                  <div className="grow"><b>{campaigns[0].title}</b><span>{campaigns[0].description}</span></div>
+                  <a className="btn sec" href={`/api/documentos/${campaigns[0].id}`}><Icon name="down" />Descargar</a>
                 </div>
-                <a className="btn sec" href={`/api/documentos/${campaigns[0].id}`}><Icon name="down" />Descargar</a>
               </div>
+            ) : (
+              <p className="muted">Todavía no hay una campaña cargada este mes.</p>
+            )}
+          </section>
+          <section className="card">
+            <h2>Novedades de IDT</h2>
+            <div className="list">
+              {(news ?? []).map((n) => (
+                <div className="li" key={n.id}>
+                  <div className="grow"><b>{n.title}</b><span>{n.body}</span></div>
+                </div>
+              ))}
             </div>
-          ) : (
-            <p className="muted">No hay una campaña cargada este mes.</p>
-          )}
-        </section>
-        <section className="card">
-          <h2>Novedades de IDT</h2>
-          <div className="list">
-            {(news ?? []).map((n) => (
-              <div className="li" key={n.id}>
-                <div className="grow"><b>{n.title}</b><span>{n.body}</span></div>
-              </div>
-            ))}
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </>
   );
