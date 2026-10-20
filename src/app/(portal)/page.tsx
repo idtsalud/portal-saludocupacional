@@ -6,6 +6,8 @@ import { canSeeAbsences, requireOrg } from "@/lib/session";
 import { firstName, fmtLongToday } from "@/lib/format";
 import { waComercial } from "@/lib/contacto";
 import type { ServiceKey } from "@/lib/services";
+import { CommunityCard } from "@/components/Posts";
+import { POST_FIELDS, type Post } from "@/lib/posts";
 
 const TZ = "America/Argentina/Buenos_Aires";
 const ymd = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
@@ -15,11 +17,12 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
   const { supabase, org, profile, has } = await requireOrg();
   const comercio = org.kind === "comercio";
 
-  const [{ data: news }, { data: campaigns }, { data: catalog }, { count: collaborators }] = await Promise.all([
+  const [{ data: news }, { data: campaigns }, { data: catalog }, { count: collaborators }, { data: posts }] = await Promise.all([
     supabase.from("news").select("id, title, body").order("published_at", { ascending: false }).limit(3),
     supabase.from("documents").select("id, title, description").eq("category", "campana").order("created_at", { ascending: false }).limit(1),
     supabase.from("services").select("key, name, audience").eq("active", true).in("audience", ["cliente", "ambos"]).order("sort"),
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("user_type", "colaborador"),
+    supabase.from("posts").select(POST_FIELDS).eq("status", "publicado").contains("audience", [org.kind]).order("published_at", { ascending: false }).limit(4),
   ]);
 
   let absent: { today: number; active: number; pendingCert: number } | null = null;
@@ -76,7 +79,9 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
     </section>
   );
 
-  const newsCard = (
+  const newsCard = posts && posts.length > 0 ? (
+    <CommunityCard posts={posts as Post[]} base="/comunidad" />
+  ) : (
     <section className="card">
       <h2>Novedades de IDT</h2>
       <div className="list">

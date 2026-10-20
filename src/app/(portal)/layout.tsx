@@ -16,7 +16,11 @@ export default async function PortalLayout({ children }: { children: React.React
     { href: "/historia", label: "Historia clínica", icon: "heart" },
   );
   if (!comercio || has("academia")) items.push({ href: "/academia", label: "Academia IDT", icon: "cap" });
-  items.push({ href: "/equipo", label: "Mi equipo IDT", icon: "team" }, { href: "/sedes", label: "Sedes", icon: "pin" });
+  items.push(
+    { href: "/comunidad", label: "Comunidad", icon: "chat" },
+    { href: "/equipo", label: "Mi equipo IDT", icon: "team" },
+    { href: "/sedes", label: "Sedes", icon: "pin" },
+  );
   if (profile.is_idt_staff) items.push({ href: "/admin", label: "Administración IDT", icon: "gear" });
 
   const detail = `${org.plan}${org.staff_count ? ` · ${org.staff_count} personas` : ""}`;

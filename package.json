@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "invitar-staff": "node --env-file=.env.local scripts/invitar-staff.mjs"
+    "invitar-staff": "node --env-file=.env.local scripts/invitar-staff.mjs",
+    "cargar-borradores": "node --env-file=.env.local scripts/cargar-borradores.mjs",
+    "listar-publicaciones": "node --env-file=.env.local scripts/listar-publicaciones.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",

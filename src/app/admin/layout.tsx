@@ -8,6 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin", label: "Organizaciones", icon: "users" },
     { href: "/admin/pedidos", label: "Pedidos", icon: "clip" },
     { href: "/admin/documentos", label: "Documentos", icon: "doc" },
+    { href: "/admin/comunidad", label: "Comunidad", icon: "chat" },
   ];
   if (profile.org_id) items.push({ href: "/", label: "Ver mi portal", icon: "home" });
   return (

@@ -4,6 +4,8 @@ import { requireColaborador } from "@/lib/session";
 import { firstName } from "@/lib/format";
 import { CONTACTO, waAvisoMedico, waComercial } from "@/lib/contacto";
 import type { ServiceKey } from "@/lib/services";
+import { PostList } from "@/components/Posts";
+import { POST_FIELDS, type Post } from "@/lib/posts";
 
 type Care = { key: ServiceKey; icon: string; title: string; text: string; cta: string; msg: string };
 
@@ -11,6 +13,14 @@ export default async function InicioColaborador() {
   const { supabase, org, profile, has } = await requireColaborador();
   const nombre = profile.full_name || "un colaborador";
   const yo = `${nombre} (${org.name})`;
+
+  const { data: posts } = await supabase
+    .from("posts")
+    .select(POST_FIELDS)
+    .eq("status", "publicado")
+    .contains("audience", ["colaborador"])
+    .order("published_at", { ascending: false })
+    .limit(3);
 
   const { data: campaigns } = has("campanas")
     ? await supabase.from("documents").select("id, title, description").eq("category", "campana").order("created_at", { ascending: false }).limit(3)
@@ -122,6 +132,16 @@ export default async function InicioColaborador() {
           </ol>
         </section>
       </div>
+
+      {posts && posts.length > 0 && (
+        <section style={{ display: "grid", gap: 16 }}>
+          <div className="row-h" style={{ marginBottom: 0 }}>
+            <h2>Para leer esta semana</h2>
+            <Link href="/colaborador/comunidad">Ver todo</Link>
+          </div>
+          <PostList posts={posts as Post[]} base="/colaborador/comunidad" empty="" />
+        </section>
+      )}
 
       {campaigns && campaigns.length > 0 && (
         <section className="card">

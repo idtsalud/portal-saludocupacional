@@ -139,6 +139,35 @@ ol.steps span{color:var(--muted);font-size:14.5px}
 .note{font-size:14px;color:var(--muted);display:flex;gap:10px;align-items:flex-start}
 .note svg{width:17px;height:17px;flex:none;margin-top:3px}
 
+/* Comunidad */
+.post-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px}
+.post-card{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;text-decoration:none;color:inherit;min-width:0}
+.post-card:hover{border-color:var(--brand)}
+.post-card .post-body{padding:18px 20px 20px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.post-card h3{font-size:18px}
+.post-card p{color:var(--muted);font-size:14.5px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cover{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--surface-2);max-width:100%}
+.cover.tall{aspect-ratio:21/9;border-radius:14px;margin:16px 0 4px}
+.cover.brand{display:flex;flex-direction:column;justify-content:flex-end;gap:4px;padding:18px 20px;color:#fff;background:linear-gradient(140deg,#001b5a 0%,#0b3a9e 62%,#16bdd2 135%)}
+.cover.brand span{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8cf0e3}
+.cover.brand b{font-size:22px;font-weight:600;line-height:1.15}
+.article{display:flex;flex-direction:column;gap:14px;max-width:860px}
+.article-meta{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.article .lead{font-size:18px;color:var(--muted)}
+.prose{font-size:16.5px;line-height:1.7;display:grid;gap:14px}
+.prose h3{font-size:19px;margin-top:8px}
+.prose ul{margin:0;padding-left:22px;display:grid;gap:6px}
+.sources{border-top:1px solid var(--line);padding-top:16px;margin-top:8px}
+.sources h3{margin-bottom:8px}
+.sources ul{margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px}
+.embed{width:100%;border:0;border-radius:12px}
+.embed.audio{height:160px}
+.embed.video{aspect-ratio:16/9}
+.status{display:inline-flex;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:999px}
+.status.borrador{background:var(--warn-soft);color:var(--warn)}
+.status.publicado{background:var(--green-soft);color:var(--green)}
+.status.archivado{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+
 /* Formularios y tablas */
 form.f{display:grid;gap:14px}
 .f label{display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:600;color:var(--muted)}
