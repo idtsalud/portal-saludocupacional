@@ -141,8 +141,8 @@ ol.steps span{color:var(--muted);font-size:14.5px}
 
 /* Novedades del inicio */
 .section-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
-.news-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;position:relative;overflow:hidden}
+.news-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px}
+.news-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:26px 28px;position:relative;overflow:hidden}
 .news-card::before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:linear-gradient(180deg,var(--brand),var(--cyan))}
 .news-card .ic{width:52px;height:52px;border-radius:15px;background:linear-gradient(140deg,#001b5a,#0b3a9e);color:#8cf0e3}
 .news-card .ic svg{width:25px;height:25px}
@@ -243,3 +243,28 @@ tr:last-child td{border-bottom:0}
   .f .two{grid-template-columns:1fr}
   .howto .actions .btn{width:100%}
 }
+
+/* Tu servicio */
+.plan-card{display:grid;gap:22px;align-content:start}
+.plan-card .row-h{margin-bottom:0}
+.plan-units{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:16px 18px;border-radius:14px;background:var(--brand-soft)}
+.plan-units b{font-size:30px;line-height:1;color:var(--brand)}
+.plan-units span{font-size:14px;color:var(--ink)}
+.plan-group{display:grid;gap:10px;padding-top:18px;border-top:1px solid var(--line)}
+.plan-group h3{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.plan-group .checklist svg[data-icon],.plan-group .checklist svg{color:var(--green)}
+.plan-group .li .btn{white-space:nowrap}
+
+/* Permisos */
+.perm-picker{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0;display:grid;gap:10px}
+.perm-picker legend{font-weight:700;font-size:14px;padding:0 6px}
+.perm-option{display:flex !important;flex-direction:row !important;gap:10px;align-items:flex-start;font-weight:400 !important;cursor:pointer}
+.perm-option input{width:auto !important;margin-top:4px;flex:none}
+.perm-option b{display:block;font-weight:600}
+.perm-option span span{display:block;font-size:13.5px;color:var(--muted)}
+
+/* Vista de administración */
+.staffbar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:12px;background:var(--warn-soft);color:var(--ink);font-size:14px}
+.staffbar-links{display:flex;gap:16px}
+.staffbar a{font-weight:600}
+.qa.current{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft)}

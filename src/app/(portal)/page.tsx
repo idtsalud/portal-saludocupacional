@@ -7,6 +7,8 @@ import { firstName, fmtLongToday } from "@/lib/format";
 import { waComercial } from "@/lib/contacto";
 import type { ServiceKey } from "@/lib/services";
 import { PostList } from "@/components/Posts";
+import { ServicePlan, type CatalogService } from "@/components/ServicePlan";
+import { OPEN_STATUSES } from "@/lib/solicitudes";
 import { POST_FIELDS, type Post } from "@/lib/posts";
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -17,12 +19,13 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
   const { supabase, org, profile, has } = await requireOrg();
   const comercio = org.kind === "comercio";
 
-  const [{ data: news }, { data: campaigns }, { data: catalog }, { count: collaborators }, { data: posts }] = await Promise.all([
+  const [{ data: news }, { data: campaigns }, { data: catalog }, { count: collaborators }, { data: posts }, { data: openReqs }] = await Promise.all([
     supabase.from("news").select("id, title, body").order("published_at", { ascending: false }).limit(3),
     supabase.from("documents").select("id, title, description").eq("category", "campana").order("created_at", { ascending: false }).limit(1),
-    supabase.from("services").select("key, name, audience").eq("active", true).in("audience", ["cliente", "ambos"]).order("sort"),
+    supabase.from("services").select("key, name, description").eq("active", true).in("audience", ["cliente", "ambos"]).order("sort"),
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("user_type", "colaborador"),
     supabase.from("posts").select(POST_FIELDS).eq("status", "publicado").contains("audience", [org.kind]).order("published_at", { ascending: false }).limit(4),
+    supabase.from("solicitudes").select("service_key").eq("org_id", org.id).eq("kind", "servicio").in("status", OPEN_STATUSES),
   ]);
 
   let absent: { today: number; active: number; pendingCert: number } | null = null;
@@ -42,15 +45,19 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
     };
   }
 
-  const unitsLabel = comercio ? "prestaciones" : "UP";
-  const services = (catalog ?? [])
-    .map((s): [string, boolean, string] => {
-      const on = has(s.key as ServiceKey);
-      const label = !on ? "Sumar" : s.key === "atencion_sedes" || s.key === "telemedicina" ? `Con ${unitsLabel}` : "Incluido";
-      return [s.name as string, on, label];
-    })
-    .sort((a, b) => Number(b[1]) - Number(a[1]));
-  const contracted = services.filter((s) => s[1]);
+  const unitsLabel = "UP";
+  const servicePlan = (
+    <ServicePlan
+      plan={org.plan}
+      units={org.plan_units}
+      unitsLabel={unitsLabel}
+      referente={org.referente_medico}
+      catalog={(catalog ?? []) as CatalogService[]}
+      enabled={(k) => has(k as ServiceKey)}
+      requested={new Set((openReqs ?? []).map((r) => r.service_key as string))}
+      canAsk={["admin", "todo"].includes(profile.permission)}
+    />
+  );
 
   const header = (
     <>
@@ -157,19 +164,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
         {absences}
 
         <div className="split">
-          <section className="card">
-            <div className="row-h">
-              <h2>Lo que tenés con tu plan</h2>
-              <span className="chip info">{org.plan}</span>
-            </div>
-            <p className="small muted" style={{ marginBottom: 16 }}>
-              {org.plan_units} {unitsLabel} por mes para consultas y estudios. Se renuevan el 1 de cada mes.
-              {org.referente_medico ? ` Tu médico referente es ${org.referente_medico}.` : ""}
-            </p>
-            <ul className="checklist">
-              {contracted.map(([name]) => <li key={name}><Icon name="check" /><span>{name}</span></li>)}
-            </ul>
-          </section>
+          {servicePlan}
           {newsCard}
         </div>
         {communitySection}
@@ -203,24 +198,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
       <Benefit orgName={org.name} />
 
       <div className="split">
-        <section className="card">
-          <div className="row-h">
-            <h2>Tu servicio</h2>
-            <span className="chip info">{org.plan}</span>
-          </div>
-          <p className="small muted" style={{ marginBottom: 16 }}>
-            {org.plan_units} UP por mes. Se renueva el 1 de cada mes.
-            {org.referente_medico ? ` Médico referente: ${org.referente_medico}.` : ""}
-          </p>
-          <div className="list">
-            {services.map(([name, on, label]) => (
-              <div className="li" key={name}>
-                <div className="grow"><b>{name}</b></div>
-                <span className={"chip " + (on ? "ok" : "off")}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+        {servicePlan}
 
         <div className="grid" style={{ alignContent: "start" }}>
           <section className="card">

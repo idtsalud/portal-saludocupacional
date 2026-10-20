@@ -1,4 +1,5 @@
 import { Sidebar, type NavItem } from "@/components/Sidebar";
+import { StaffBar } from "@/components/StaffBar";
 import { logout } from "@/app/login/actions";
 import { canSeeAbsences, requireOrg } from "@/lib/session";
 
@@ -21,6 +22,7 @@ export default async function PortalLayout({ children }: { children: React.React
     { href: "/equipo", label: "Mi equipo IDT", icon: "team" },
     { href: "/sedes", label: "Sedes", icon: "pin" },
   );
+  if (profile.permission === "admin" || profile.permission === "todo") items.push({ href: "/solicitudes", label: "Solicitudes a IDT", icon: "info" });
   if (profile.is_idt_staff) items.push({ href: "/admin", label: "Administración IDT", icon: "gear" });
 
   const detail = `${org.plan}${org.staff_count ? ` · ${org.staff_count} personas` : ""}`;
@@ -28,6 +30,7 @@ export default async function PortalLayout({ children }: { children: React.React
 
   return (
     <Sidebar items={items} orgName={org.name} orgDetail={detail} userLabel={userLabel} logoutAction={logout}>
+      {profile.is_idt_staff && <StaffBar view={comercio ? "Comercio" : "Empresa"} />}
       {children}
     </Sidebar>
   );

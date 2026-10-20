@@ -68,7 +68,7 @@ export async function ingestAvisos(rows: IncomingAviso[]): Promise<IngestResult>
       last_synced_at: new Date().toISOString(),
       rows_read: rows.length,
       last_error: companiesWithoutMatch.length
-        ? `Avisos de empresas sin organización en el portal: ${companiesWithoutMatch.join(", ")}. Si son clientes, completá su "Nombre en la planilla".`
+        ? `Avisos de empresas que no son clientes del portal: ${companiesWithoutMatch.join(", ")}. Si son clientes, completá su "Nombre en la planilla".`
         : null,
     })
     .eq("id", "avisos");

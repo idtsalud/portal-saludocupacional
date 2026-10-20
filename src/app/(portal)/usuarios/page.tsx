@@ -2,6 +2,7 @@ import { Flash } from "@/components/Flash";
 import { Icon } from "@/components/Icon";
 import { SubmitButton } from "@/components/SubmitButton";
 import { PERMISSIONS } from "@/lib/invite";
+import { PermissionPicker } from "@/components/PermissionPicker";
 import { requireOrg } from "@/lib/session";
 import { inviteCollaborators, inviteTeamMember, removeCollaborator } from "./actions";
 
@@ -92,7 +93,7 @@ export default async function Usuarios({ searchParams }: { searchParams: Promise
           <h2>{comercio ? "Quién administra el portal" : "Equipo que administra el portal"}</h2>
           <div className="tbl">
             <table>
-              <thead><tr><th>Nombre</th><th>Rol</th><th>Permiso</th></tr></thead>
+              <thead><tr><th>Nombre</th><th>Puesto</th><th>Permiso</th></tr></thead>
               <tbody>
                 {team.map((p) => (
                   <tr key={p.id}>
@@ -112,15 +113,8 @@ export default async function Usuarios({ searchParams }: { searchParams: Promise
             <form className="f" action={inviteTeamMember}>
               <label htmlFor="full_name">Nombre y apellido<input id="full_name" name="full_name" required maxLength={120} /></label>
               <label htmlFor="email">Correo<input id="email" name="email" type="email" required /></label>
-              <div className="two">
-                <label htmlFor="role_title">Rol<input id="role_title" name="role_title" placeholder="RR.HH., socio" maxLength={80} /></label>
-                <label htmlFor="permission">
-                  Permiso
-                  <select id="permission" name="permission" defaultValue="todo">
-                    {Object.entries(PERMISSIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </label>
-              </div>
+              <label htmlFor="role_title">Puesto (opcional)<input id="role_title" name="role_title" placeholder="Ej.: RR.HH., socio, encargado" maxLength={80} /></label>
+              <PermissionPicker defaultValue="todo" />
               <SubmitButton className="btn sec">Enviar invitación</SubmitButton>
             </form>
           </section>

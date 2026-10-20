@@ -32,11 +32,14 @@ export async function deleteUser(userId: string) {
   return admin.auth.admin.deleteUser(userId);
 }
 
-export const PERMISSIONS: Record<string, string> = {
-  admin: "Administra (invita usuarios)",
-  todo: "Ve todo",
-  pedidos: "Sin ausencias",
-  reportes: "Solo reportes",
+/** Qué puede hacer cada usuario del cliente en el portal. */
+export const PERMISSION_INFO: Record<string, { label: string; help: string }> = {
+  admin: { label: "Administrador", help: "Ve todo, hace solicitudes a IDT y suma o quita usuarios del portal. Ideal para el dueño o RR.HH." },
+  todo: { label: "Gestión completa", help: "Ve todo, incluidas las ausencias del personal, y hace solicitudes a IDT. No puede sumar usuarios." },
+  pedidos: { label: "Gestión sin ausencias", help: "Gestiona turnos y estudios, pero no ve las ausencias ni datos de salud del personal. Ideal para un encargado." },
+  reportes: { label: "Solo consulta", help: "Solo mira: ausencias, documentos y servicios. No hace pedidos ni solicitudes." },
 };
+
+export const PERMISSIONS: Record<string, string> = Object.fromEntries(Object.entries(PERMISSION_INFO).map(([k, v]) => [k, v.label]));
 
 export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;

@@ -26,7 +26,7 @@ export default async function AdminDocumentos({ searchParams }: { searchParams: 
             <label htmlFor="org_id">
               Para quién
               <select id="org_id" name="org_id" defaultValue="">
-                <option value="">Todas las organizaciones (general)</option>
+                <option value="">Todos los clientes (general)</option>
                 {(orgs ?? []).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
             </label>

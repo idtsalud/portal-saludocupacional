@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Flash } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 import { PERMISSIONS } from "@/lib/invite";
+import { PermissionPicker } from "@/components/PermissionPicker";
 import { getPlans } from "@/lib/plans";
 import { requireStaff } from "@/lib/session";
 import { applyPreset, inviteToOrg, updateOrg, updateOrgServices } from "../../actions";
@@ -92,7 +93,7 @@ export default async function OrgDetail({
                 ))}
               </div>
             ) : (
-              <p className="muted">Todavía no hay usuarios. Invitá al primero, idealmente con permiso Administra.</p>
+              <p className="muted">Todavía no hay usuarios. Invitá primero al administrador del cliente.</p>
             )}
           </section>
           <section className="card">
@@ -101,15 +102,9 @@ export default async function OrgDetail({
               <input type="hidden" name="org_id" value={org.id} />
               <label htmlFor="full_name">Nombre y apellido<input id="full_name" name="full_name" required /></label>
               <label htmlFor="email">Correo<input id="email" name="email" type="email" required /></label>
-              <div className="two">
-                <label htmlFor="role_title">Rol<input id="role_title" name="role_title" placeholder="RR.HH., Dueño" /></label>
-                <label htmlFor="permission">
-                  Permiso
-                  <select id="permission" name="permission" defaultValue="admin">
-                    {Object.entries(PERMISSIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </label>
-              </div>
+              <label htmlFor="role_title">Puesto en la empresa (opcional)<input id="role_title" name="role_title" placeholder="Ej.: RR.HH., Dueño, Encargado" /></label>
+              <PermissionPicker defaultValue={people && people.length > 0 ? "todo" : "admin"} />
+              <p className="small muted">Le llega un correo para crear su contraseña y entrar al portal.</p>
               <SubmitButton>Enviar invitación</SubmitButton>
             </form>
           </section>

@@ -5,9 +5,9 @@ import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/session";
 import { inviteUser, PERMISSIONS } from "@/lib/invite";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient as createServerClient } from "@/lib/supabase/server";
 import { PLAN_FIELDS, type Plan } from "@/lib/plans";
 import { SERVICE_KEYS } from "@/lib/services";
+import { SOLICITUD_STATUS } from "@/lib/solicitudes";
 
 const str = (f: FormData, k: string, max = 200) => String(f.get(k) ?? "").trim().slice(0, max);
 
@@ -56,16 +56,23 @@ export async function createOrg(f: FormData) {
   if (!preset) redirect("/admin?error=datos");
   const staff = parseInt(str(f, "staff_count"), 10);
   const name = str(f, "name", 160);
-  if (!name) redirect("/admin?error=datos");
+  const adminEmail = str(f, "admin_email").toLowerCase();
+  const adminName = str(f, "admin_name", 120);
+  if (!name || (adminEmail && (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminEmail) || !adminName))) redirect("/admin?error=datos#nuevo");
   const { data, error } = await supabase
     .from("organizations")
-    .insert({ name, kind: preset.kind, plan: preset.name, plan_key: preset.key, plan_units: preset.units, staff_count: Number.isFinite(staff) ? staff : null })
+    .insert({ name, kind: preset.kind, plan: preset.name, plan_key: preset.key, plan_units: preset.units, staff_count: Number.isFinite(staff) ? staff : null, sheet_company_key: f.get("aviso_medico") === "on" ? name : null })
     .select("id")
     .single();
   if (error || !data) redirect("/admin?error=fallo");
-  if (await setServices(supabase, data.id, preset.services)) redirect(`/admin/org/${data.id}?error=fallo`);
+  const services = f.get("aviso_medico") === "on" ? [...new Set([...preset.services, "aviso_medico"])] : preset.services;
+  if (await setServices(supabase, data.id, services)) redirect(`/admin/org/${data.id}?error=fallo`);
+  if (adminEmail) {
+    const { error: e2 } = await inviteUser({ email: adminEmail, fullName: adminName, roleTitle: str(f, "admin_role", 80), permission: "admin", orgId: data.id });
+    if (e2) redirect(`/admin/org/${data.id}?error=invitar`);
+  }
   revalidatePath("/admin");
-  redirect(`/admin/org/${data.id}?ok=org`);
+  redirect(`/admin/org/${data.id}?ok=${adminEmail ? "cliente_invitado" : "cliente"}`);
 }
 
 export async function updateOrgServices(f: FormData) {
@@ -113,15 +120,15 @@ export async function inviteToOrg(f: FormData) {
   redirect(`/admin/org/${orgId}?ok=invitado`);
 }
 
-export async function updateRequestStatus(f: FormData) {
+export async function updateSolicitud(f: FormData) {
   const { supabase } = await requireStaff();
   const id = Number(str(f, "id"));
   const status = str(f, "status");
-  if (!id || !["recibido", "coordinado", "realizado", "resultados", "cancelado"].includes(status)) redirect("/admin/pedidos?error=datos");
-  const { error } = await supabase.from("requests").update({ status, status_detail: str(f, "status_detail", 200) || null }).eq("id", id);
-  if (error) redirect("/admin/pedidos?error=fallo");
-  revalidatePath("/admin/pedidos");
-  redirect("/admin/pedidos?ok=estado");
+  if (!id || !(status in SOLICITUD_STATUS)) redirect("/admin/solicitudes?error=datos");
+  const { error } = await supabase.from("solicitudes").update({ status, staff_note: str(f, "staff_note", 500) || null }).eq("id", id);
+  if (error) redirect("/admin/solicitudes?error=fallo");
+  revalidatePath("/admin/solicitudes");
+  redirect("/admin/solicitudes?ok=estado");
 }
 
 const SERVICES = ["aviso_medico", "ruta_saludable", "academia", "campanas"];
@@ -157,21 +164,26 @@ export async function uploadDocument(f: FormData) {
   redirect("/admin/documentos?ok=doc");
 }
 
-const TEST_EMAIL = /^prueba-[a-z0-9-]+@saludocupacional\.com\.ar$/;
+/** Vistas del portal que puede abrir el personal de IDT, sobre las organizaciones de demostración. */
+const STAFF_VIEWS: Record<string, { org: string; userType: "cliente" | "colaborador"; home: string }> = {
+  empresa: { org: "Empresa de demostración", userType: "cliente", home: "/" },
+  comercio: { org: "Comercio de demostración", userType: "cliente", home: "/" },
+  colaborador_empresa: { org: "Empresa de demostración", userType: "colaborador", home: "/colaborador" },
+  colaborador_comercio: { org: "Comercio de demostración", userType: "colaborador", home: "/colaborador" },
+};
 
-/** Abre el portal como un usuario de prueba (solo correos prueba-…@saludocupacional.com.ar). Cierra la sesión actual. */
-export async function loginAsTestUser(f: FormData) {
-  await requireStaff();
-  const email = str(f, "email").toLowerCase();
-  if (!TEST_EMAIL.test(email)) redirect("/admin?error=permiso");
+/** Cambia la vista del portal del personal de IDT (empresa, comercio o colaborador) sin cerrar la sesión. */
+export async function setStaffView(f: FormData) {
+  const { profile } = await requireStaff();
+  const view = STAFF_VIEWS[str(f, "view")];
+  if (!view) redirect("/admin?error=datos");
   const admin = createAdminClient();
-  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
-  if (error || !data.properties?.hashed_token) redirect("/admin?error=fallo");
-  const supabase = await createServerClient();
-  await supabase.auth.signOut();
-  const { error: e2 } = await supabase.auth.verifyOtp({ type: "magiclink", token_hash: data.properties.hashed_token });
-  if (e2) redirect("/login?error=enlace");
-  redirect("/");
+  const { data: org } = await admin.from("organizations").select("id").eq("name", view.org).maybeSingle();
+  if (!org) redirect("/admin?error=fallo");
+  const { error } = await admin.from("profiles").update({ org_id: org.id, user_type: view.userType, permission: "admin" }).eq("id", profile.id).eq("is_idt_staff", true);
+  if (error) redirect("/admin?error=fallo");
+  revalidatePath("/", "layout");
+  redirect(view.home);
 }
 
 /** Crea o edita un plan. Con "aplicar a clientes", también actualiza a todos los clientes que lo tienen. */
