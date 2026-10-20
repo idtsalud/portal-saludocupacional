@@ -111,7 +111,7 @@ const T = {
     }),
   },
   "verificar-identidad": {
-    subject: "Tu código de verificación",
+    subject: "Tu código de verificación: {{ .Token }}",
     html: layout({
       preheader: "Usá este código para confirmar que sos vos.",
       title: "Confirmá que sos vos",
