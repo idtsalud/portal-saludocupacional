@@ -1,80 +1,138 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { Icon } from "@/components/Icon";
+import { PrintButton } from "@/components/PrintButton";
 import { prettyStatus } from "@/lib/avisos-sync";
+import { loadMonth, monthLabel, parseMonth, restDays, shiftMonth, summarize, ymd } from "@/lib/ausentismo";
 import { canSeeAbsences, requireOrg } from "@/lib/session";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDate, fmtDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-const TZ = "America/Argentina/Buenos_Aires";
-const ymd = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
-const ym = (d: Date) => ymd(d).slice(0, 7);
-const MONTH = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, month: "short" });
+const yn = (v: boolean | null) => (v == null ? <span className="muted">—</span> : v ? <span className="chip ok">Sí</span> : <span className="chip warn">No</span>);
+const shortDay = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
 
-export default async function Ausencias() {
+export default async function Ausencias({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const sp = await searchParams;
   const { supabase, org, profile, has } = await requireOrg();
   if (!has("aviso_medico") || !canSeeAbsences(profile)) redirect("/");
 
-  const since = new Date();
-  since.setMonth(since.getMonth() - 6);
-  const { data } = await supabase
-    .from("avisos")
-    .select("id, received_at, collaborator, certificate_status, rest_indicated, status")
-    .eq("org_id", org.id)
-    .gte("received_at", since.toISOString())
-    .order("received_at", { ascending: false })
-    .limit(2000);
-  const avisos = data ?? [];
+  const m = parseMonth(sp.mes);
+  const isCurrent = m === ymd(new Date()).slice(0, 7);
+  const prev = shiftMonth(m, -1);
+  const [{ avisos, canSeeMotivo }, { avisos: prevAvisos }] = await Promise.all([loadMonth(supabase, org.id, m), loadMonth(supabase, org.id, prev)]);
+  const s = summarize(avisos, m);
+  const delta = s.total - prevAvisos.length;
 
-  const today = ymd(new Date());
-  const todays = avisos.filter((a) => ymd(new Date(a.received_at)) === today);
-  const toEvaluate = avisos.filter((a) => /pendiente/i.test(a.status ?? ""));
-  const noCert = avisos.filter((a) => a.certificate_status === "Pendiente");
-
-  // Avisos por mes, últimos 6 meses
-  const months: { key: string; label: string; count: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    months.push({ key: ym(d), label: MONTH.format(d).replace(".", ""), count: 0 });
-  }
-  for (const a of avisos) {
-    const m = months.find((x) => x.key === ym(new Date(a.received_at)));
-    if (m) m.count++;
-  }
-  const max = Math.max(1, ...months.map((m) => m.count));
-  const W = 520, H = 200, pad = 28, bw = 46;
-  const gap = (W - pad * 2 - bw * months.length) / (months.length - 1);
-  const recent = avisos.slice(0, 40);
+  // Ausentes hoy: también cuenta reposos de avisos del mes anterior que siguen vigentes.
+  const absentToday = isCurrent ? [...s.absentToday, ...summarize(prevAvisos, prev).absentToday] : [];
+  const maxDay = Math.max(1, ...s.perDay.map((d) => d.count));
 
   return (
     <>
+      {isCurrent && <AutoRefresh seconds={300} />}
       <div className="head">
         <div>
-          <h1>Ausencias</h1>
-          <p>Los avisos que tu equipo manda por WhatsApp a Aviso Médico. Se actualizan cada 10 minutos.</p>
+          <h1>Ausentismo</h1>
+          <p>Los avisos que tu equipo manda a Aviso Médico, en vivo. Se actualizan cada 10 minutos.</p>
+        </div>
+        <div className="head-actions no-print">
+          <a className="btn sec" href={`/api/ausencias/csv?mes=${m}`}><Icon name="down" />Descargar Excel</a>
+          <PrintButton />
         </div>
       </div>
-      <div className="grid g3">
-        <section className="card kpi"><b>{todays.length}</b><span>Avisos de hoy</span></section>
-        <section className="card kpi"><b>{toEvaluate.length}</b><span>Pendientes de evaluación médica</span></section>
-        <section className="card kpi"><b>{noCert.length}</b><span>Sin certificado</span></section>
+
+      <div className="month-nav no-print">
+        <Link className="btn ghost" href={`/ausencias?mes=${prev}`} aria-label="Mes anterior">‹ {monthLabel(prev)}</Link>
+        <b>{monthLabel(m)}{isCurrent ? " · en curso" : ""}</b>
+        {!isCurrent ? <Link className="btn ghost" href={`/ausencias?mes=${shiftMonth(m, 1)}`} aria-label="Mes siguiente">{monthLabel(shiftMonth(m, 1))} ›</Link> : <span />}
+      </div>
+      <p className="print-only"><b>{org.name}</b> · Reporte de ausentismo · {monthLabel(m)}</p>
+
+      <div className="kpi-grid">
+        <section className="card kpi">
+          <b>{s.total}</b>
+          <span>Avisos del mes</span>
+          <small className={delta > 0 ? "up" : delta < 0 ? "down" : ""}>{delta === 0 ? "Igual que" : delta > 0 ? `${delta} más que` : `${-delta} menos que`} {monthLabel(prev).split(" ")[0].toLowerCase()}</small>
+        </section>
+        <section className="card kpi"><b>{s.people.length}</b><span>Personas con aviso</span></section>
+        <section className="card kpi"><b>{s.restDays}</b><span>Días de reposo indicados</span><small>{s.withRest} avisos con reposo</small></section>
+        <section className="card kpi"><b>{s.noCert}</b><span>Sin certificado</span><small>{s.toEvaluate} pendientes de evaluación</small></section>
+        {isCurrent && <section className="card kpi alert-kpi"><b>{absentToday.length}</b><span>Con reposo hoy</span></section>}
+        {s.notifiedPct != null && <section className="card kpi"><b>{s.notifiedPct}%</b><span>Avisaron a su supervisor</span></section>}
+      </div>
+
+      {isCurrent && absentToday.length > 0 && (
+        <section className="card">
+          <h2>Con reposo hoy</h2>
+          <div className="list">
+            {absentToday.map((a) => (
+              <div className="li" key={a.id}>
+                <div className="grow"><b>{a.collaborator}</b><span>Reposo del {shortDay(a.rest_from!)} al {shortDay(a.rest_to ?? a.rest_from!)}{canSeeMotivo && a.motivo ? ` · ${a.motivo}` : ""}</span></div>
+                <span className="chip info">Vuelve el {shortDay(new Date(Date.parse(a.rest_to ?? a.rest_from!) + 86400000).toISOString().slice(0, 10))}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="split">
+        <section className="card">
+          <h2>Avisos por día</h2>
+          <div className="day-bars" role="img" aria-label={`Avisos por día de ${monthLabel(m)}`}>
+            {s.perDay.map((d) => (
+              <div key={d.day} className="day-bar" title={`${d.day}: ${d.count} avisos`}>
+                <span style={{ height: `${(d.count / maxDay) * 100}%` }} className={d.count ? "on" : ""} />
+                <small>{d.day % 5 === 1 ? d.day : ""}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="card">
+          <h2>Por persona</h2>
+          {s.people.length > 0 ? (
+            <div className="tbl">
+              <table>
+                <thead><tr><th>Colaborador</th><th className="num">Avisos</th><th className="num">Días de reposo</th><th>Último aviso</th></tr></thead>
+                <tbody>
+                  {s.people.map((p) => (
+                    <tr key={p.name}><td><b>{p.name}</b></td><td className="num">{p.avisos}</td><td className="num">{p.restDays}</td><td className="num">{fmtDate(p.last)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted">Sin avisos este mes.</p>
+          )}
+        </section>
       </div>
 
       <section className="card">
-        <h2>Últimos avisos</h2>
-        {recent.length > 0 ? (
+        <h2>Detalle de avisos</h2>
+        <p className="small muted" style={{ marginBottom: 12 }}>
+          Recorrido de cada aviso: avisó a su supervisor → avisó a Aviso Médico → consulta médica → certificado y reposo.
+        </p>
+        {avisos.length > 0 ? (
           <div className="tbl">
             <table>
-              <thead><tr><th>Colaborador</th><th>Aviso</th><th>Certificado</th><th>Reposo indicado</th><th>Estado</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Colaborador</th><th>Aviso</th>
+                  {canSeeMotivo && <th>Motivo</th>}
+                  <th>Avisó al supervisor</th><th>Consultó médico</th><th>Certificado</th><th>Reposo</th><th>Estado</th>
+                </tr>
+              </thead>
               <tbody>
-                {recent.map((a) => (
+                {avisos.map((a) => (
                   <tr key={a.id}>
                     <td><b>{a.collaborator}</b></td>
                     <td className="num">{fmtDateTime(a.received_at)}</td>
+                    {canSeeMotivo && <td>{a.motivo ?? "—"}</td>}
+                    <td>{yn(a.notified_employer)}</td>
+                    <td>{yn(a.consulted_doctor)}</td>
                     <td>{a.certificate_status ? <span className={"chip " + (a.certificate_status === "Recibido" ? "ok" : "warn")}>{a.certificate_status}</span> : "—"}</td>
-                    <td>{a.rest_indicated == null ? "—" : a.rest_indicated ? "Sí" : "No"}</td>
+                    <td className="num">{a.rest_from ? `${shortDay(a.rest_from)} al ${shortDay(a.rest_to ?? a.rest_from)} · ${restDays(a)} d` : a.rest_indicated === false ? "Sin reposo" : a.rest_indicated ? "Sí" : "—"}</td>
                     <td><span className={"chip " + (/pendiente/i.test(a.status ?? "") ? "warn" : "info")}>{prettyStatus(a.status)}</span></td>
                   </tr>
                 ))}
@@ -82,32 +140,14 @@ export default async function Ausencias() {
             </table>
           </div>
         ) : (
-          <p className="muted">Todavía no hay avisos de tu equipo en los últimos 6 meses.</p>
+          <p className="muted">No hubo avisos en {monthLabel(m).toLowerCase()}.</p>
         )}
-        <p className="note" style={{ marginTop: 12 }}>
-          <Icon name="shield" />
-          <span>RR.HH. ve el estado, si hay certificado y si se indicó reposo. El motivo y el diagnóstico los ve solo el equipo médico.</span>
-        </p>
-      </section>
-
-      <section className="card">
-        <h2>Avisos por mes</h2>
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Cantidad de avisos de ausencia por mes, últimos seis meses">
-          <line x1={pad} x2={W - pad} y1={H - 28} y2={H - 28} stroke="var(--line)" />
-          {months.map((m, i) => {
-            const h = Math.round((m.count / max) * (H - 60));
-            const x = pad + i * (bw + gap);
-            const y = H - 28 - h;
-            return (
-              <g key={m.key}>
-                <rect x={x} y={y} width={bw} height={h} rx={6} fill="var(--brand)" opacity={i === months.length - 1 ? 0.5 : 1} />
-                <text x={x + bw / 2} y={y - 7} textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--ink)">{m.count}</text>
-                <text x={x + bw / 2} y={H - 8} textAnchor="middle" fontSize="12" fill="var(--muted)">{m.label}</text>
-              </g>
-            );
-          })}
-        </svg>
-        <p className="small muted">El mes actual está incompleto.</p>
+        {!canSeeMotivo && (
+          <p className="note" style={{ marginTop: 12 }}>
+            <Icon name="shield" />
+            <span>El motivo es un dato de salud: lo ve el equipo médico de IDT.</span>
+          </p>
+        )}
       </section>
     </>
   );

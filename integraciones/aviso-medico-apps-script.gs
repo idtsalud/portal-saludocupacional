@@ -2,8 +2,9 @@
  * Envía los avisos de la hoja "Avisos" al Portal SaludOcupacional cada 10 minutos.
  * Va en la planilla "Aviso Medico - IDT": Extensiones → Apps Script → pegar este código.
  *
- * Solo se envían: id_aviso, fecha_hora, empresa, colaborador, certificado, reposo_indicado y estado.
- * El motivo y cualquier dato de salud NO salen de la planilla.
+ * Se envían: id_aviso, fecha_hora, empresa, colaborador, aviso_empresa, motivo, consulto_medico, certificado,
+ * reposo_indicado, reposo_desde, reposo_hasta y estado. DNI y teléfono NO salen de la planilla.
+ * El motivo se guarda aparte en el portal y la empresa lo ve solo si IDT lo habilita para ese cliente.
  *
  * Configuración (una sola vez):
  * 1. Configuración del proyecto (engranaje) → Propiedades de la secuencia de comandos →
@@ -14,7 +15,7 @@
 
 var PORTAL_URL = "https://app.saludocupacional.com.ar/api/avisos/ingest";
 var HOJA = "Avisos";
-var CAMPOS = ["id_aviso", "fecha_hora", "empresa", "colaborador", "certificado", "reposo_indicado", "estado"];
+var CAMPOS = ["id_aviso", "fecha_hora", "empresa", "colaborador", "aviso_empresa", "motivo", "consulto_medico", "certificado", "reposo_indicado", "reposo_desde", "reposo_hasta", "estado"];
 
 function enviarAvisos() {
   var secreto = PropertiesService.getScriptProperties().getProperty("PORTAL_SECRET");

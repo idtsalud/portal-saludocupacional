@@ -24,6 +24,7 @@ function orgFields(f: FormData) {
     referente_medico: str(f, "referente_medico", 120) || null,
     sheet_company_key: str(f, "sheet_company_key", 160) || null,
     avisos_desde: /^\d{4}-\d{2}-\d{2}$/.test(str(f, "avisos_desde")) ? `${str(f, "avisos_desde")}T00:00:00-03:00` : null,
+    show_motivo: f.get("show_motivo") === "on",
   };
 }
 
@@ -62,7 +63,7 @@ export async function createOrg(f: FormData) {
   if (!name || (adminEmail && (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminEmail) || !adminName))) redirect("/admin?error=datos#nuevo");
   const { data, error } = await supabase
     .from("organizations")
-    .insert({ name, kind: preset.kind, plan: preset.name, plan_key: preset.key, plan_units: preset.units, staff_count: Number.isFinite(staff) ? staff : null, sheet_company_key: f.get("aviso_medico") === "on" ? name : null })
+    .insert({ name, kind: preset.kind, plan: preset.name, plan_key: preset.key, plan_units: preset.units, staff_count: Number.isFinite(staff) ? staff : null, sheet_company_key: f.get("aviso_medico") === "on" ? name : null, show_motivo: true })
     .select("id")
     .single();
   if (error || !data) redirect("/admin?error=fallo");

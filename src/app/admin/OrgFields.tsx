@@ -7,6 +7,7 @@ type Org = {
   referente_medico?: string | null;
   sheet_company_key?: string | null;
   avisos_desde?: string | null;
+  show_motivo?: boolean;
   has_aviso_medico?: boolean;
   has_ruta_saludable?: boolean;
   has_academia?: boolean;
@@ -45,6 +46,14 @@ export function OrgFields({ org = {} }: { org?: Org }) {
         </label>
       </div>
       <p className="small muted">Los avisos de la planilla anteriores a esa fecha (por ejemplo, pruebas) no se muestran. Vacío: se toman todos.</p>
+      <label className="check" style={{ alignItems: "flex-start" }}>
+        <input type="checkbox" name="show_motivo" defaultChecked={!!org.show_motivo} style={{ marginTop: 4 }} />
+        <span>
+          <b>La empresa ve el motivo de cada aviso</b>
+          <br />
+          <span className="small muted" style={{ fontWeight: 400 }}>Es un dato de salud: conviene que los colaboradores sepan que su empresa lo ve.</span>
+        </span>
+      </label>
     </>
   );
 }

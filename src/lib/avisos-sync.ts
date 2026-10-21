@@ -3,22 +3,38 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Avisos que envía la planilla "Aviso Medico - IDT" (hoja Avisos) desde su Apps Script.
- * Solo llegan estos campos: el motivo y cualquier dato de salud se quedan en la planilla.
+ * No llegan DNI ni teléfono. El motivo se guarda aparte (aviso_motivos) y la empresa lo ve solo si IDT lo habilita.
  */
 export type IncomingAviso = {
   id_aviso: string;
   fecha_hora: string;
   empresa: string;
   colaborador: string;
+  aviso_empresa?: string;
+  motivo?: string;
+  consulto_medico?: string;
   certificado?: string;
   reposo_indicado?: string;
+  reposo_desde?: string;
+  reposo_hasta?: string;
   estado?: string;
 };
 
 export type IngestResult = { read: number; saved: number; skippedNoCompany: number; skippedInvalid: number; skippedBefore: number; companiesWithoutMatch: string[] };
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
-const yes = (v?: string) => (v ? /^s[ií]/i.test(v.trim()) : null);
+const yes = (v?: string) => (v && v.trim() ? /^s[ií]/i.test(v.trim()) : null);
+
+/** Fecha del día en Argentina (AAAA-MM-DD) desde "07/10/2026", "2026-10-07" o una fecha ISO con hora. */
+export function toDay(v?: string): string | null {
+  const t = String(v ?? "").trim();
+  if (!t) return null;
+  const dmy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const d = new Date(t);
+  return isNaN(d.getTime()) ? null : new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(d);
+}
 
 export async function ingestAvisos(rows: IncomingAviso[]): Promise<IngestResult> {
   const admin = createAdminClient();
@@ -30,8 +46,11 @@ export async function ingestAvisos(rows: IncomingAviso[]): Promise<IngestResult>
     : withDate.data;
   const orgByKey = new Map((orgs ?? []).map((o) => [norm(o.sheet_company_key), o]));
   let skippedBefore = 0;
+  // Antes de correr la migración 0006 no existen las columnas de trazabilidad: se guarda lo básico.
+  const full = !(await admin.from("avisos").select("rest_from").limit(1)).error;
 
   const records: Record<string, unknown>[] = [];
+  const motivos = new Map<string, { org_id: string; motivo: string }>();
   const unmatched = new Set<string>();
   let skippedNoCompany = 0;
   let skippedInvalid = 0;
@@ -55,18 +74,33 @@ export async function ingestAvisos(rows: IncomingAviso[]): Promise<IngestResult>
       rest_indicated: yes(r.reposo_indicado),
       status: String(r.estado ?? "").trim().slice(0, 80) || null,
       synced_at: new Date().toISOString(),
+      ...(full
+        ? {
+            notified_employer: yes(r.aviso_empresa),
+            consulted_doctor: yes(r.consulto_medico),
+            rest_from: toDay(r.reposo_desde),
+            rest_to: toDay(r.reposo_hasta),
+          }
+        : {}),
     });
+    const motivo = String(r.motivo ?? "").trim();
+    if (full && motivo) motivos.set(id.slice(0, 80), { org_id: org.id, motivo: motivo.slice(0, 300) });
   }
 
   let saved = 0;
   for (let i = 0; i < records.length; i += 500) {
     const chunk = records.slice(i, i + 500);
-    const { error } = await admin.from("avisos").upsert(chunk, { onConflict: "external_id" });
+    const { data: savedRows, error } = await admin.from("avisos").upsert(chunk, { onConflict: "external_id" }).select("id, external_id");
     if (error) {
       await admin.from("sync_state").update({ last_error: `No se pudieron guardar los avisos: ${error.message}`.slice(0, 500) }).eq("id", "avisos");
       throw new Error(error.message);
     }
     saved += chunk.length;
+    const motivoRows = (savedRows ?? []).flatMap((a) => {
+      const m = motivos.get(a.external_id as string);
+      return m ? [{ aviso_id: a.id, ...m }] : [];
+    });
+    if (motivoRows.length) await admin.from("aviso_motivos").upsert(motivoRows, { onConflict: "aviso_id" });
   }
 
   const companiesWithoutMatch = [...unmatched].filter(Boolean);
