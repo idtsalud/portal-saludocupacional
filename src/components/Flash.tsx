@@ -12,6 +12,7 @@ const MESSAGES: Record<string, string> = {
   guardado: "Cambios guardados.",
   plan: "Plan guardado.",
   quitado: "Listo: esa persona ya no tiene acceso al portal.",
+  rol: "Rol actualizado. Lo ve la próxima vez que entre al portal.",
   servicios:"Servicios actualizados. El cliente ya los ve en su portal.",
   estado: "Estado actualizado.",
   doc: "Documento subido.",
@@ -20,6 +21,7 @@ const MESSAGES: Record<string, string> = {
 const ERRORS: Record<string, string> = {
   permiso: "Tu usuario no tiene permiso para hacer esto. Pedíselo a quien administra el portal en tu empresa.",
   datos: "Faltan datos obligatorios.",
+  propio: "No podés cambiar tu propio rol ni quitarte el acceso. Pedíselo a otro administrador.",
   invitar: "No pudimos enviar la invitación. Revisá el correo o probá más tarde.",
   fallo: "No pudimos guardar. Probá de nuevo en unos minutos.",
 };

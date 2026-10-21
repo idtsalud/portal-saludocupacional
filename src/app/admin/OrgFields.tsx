@@ -6,6 +6,7 @@ type Org = {
   staff_count?: number | null;
   referente_medico?: string | null;
   sheet_company_key?: string | null;
+  avisos_desde?: string | null;
   has_aviso_medico?: boolean;
   has_ruta_saludable?: boolean;
   has_academia?: boolean;
@@ -33,10 +34,17 @@ export function OrgFields({ org = {} }: { org?: Org }) {
         <label htmlFor="staff_count">Cantidad de personas<input id="staff_count" name="staff_count" type="number" min={0} defaultValue={org.staff_count ?? undefined} /></label>
         <label htmlFor="referente_medico">Médico referente<input id="referente_medico" name="referente_medico" defaultValue={org.referente_medico ?? undefined} /></label>
       </div>
-      <label htmlFor="sheet_company_key">
-        Nombre en la planilla de Aviso Médico
-        <input id="sheet_company_key" name="sheet_company_key" defaultValue={org.sheet_company_key ?? undefined} placeholder="Exactamente como figura en la columna Empresa" />
-      </label>
+      <div className="two">
+        <label htmlFor="sheet_company_key">
+          Nombre en la planilla de Aviso Médico
+          <input id="sheet_company_key" name="sheet_company_key" defaultValue={org.sheet_company_key ?? undefined} placeholder="Exactamente como figura en la columna Empresa" />
+        </label>
+        <label htmlFor="avisos_desde">
+          Tomar avisos desde
+          <input id="avisos_desde" name="avisos_desde" type="date" defaultValue={org.avisos_desde ? org.avisos_desde.slice(0, 10) : undefined} />
+        </label>
+      </div>
+      <p className="small muted">Los avisos de la planilla anteriores a esa fecha (por ejemplo, pruebas) no se muestran. Vacío: se toman todos.</p>
     </>
   );
 }

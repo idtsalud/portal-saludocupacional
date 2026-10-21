@@ -15,15 +15,21 @@ export type IncomingAviso = {
   estado?: string;
 };
 
-export type IngestResult = { read: number; saved: number; skippedNoCompany: number; skippedInvalid: number; companiesWithoutMatch: string[] };
+export type IngestResult = { read: number; saved: number; skippedNoCompany: number; skippedInvalid: number; skippedBefore: number; companiesWithoutMatch: string[] };
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 const yes = (v?: string) => (v ? /^s[ií]/i.test(v.trim()) : null);
 
 export async function ingestAvisos(rows: IncomingAviso[]): Promise<IngestResult> {
   const admin = createAdminClient();
-  const { data: orgs } = await admin.from("organizations").select("id, sheet_company_key").not("sheet_company_key", "is", null);
-  const orgByKey = new Map((orgs ?? []).map((o) => [norm(o.sheet_company_key as string), o.id as string]));
+  type OrgKey = { id: string; sheet_company_key: string; avisos_desde?: string | null };
+  const withDate = await admin.from("organizations").select("id, sheet_company_key, avisos_desde").not("sheet_company_key", "is", null);
+  // Antes de correr la migración 0005 no existe avisos_desde: se toman todos los avisos.
+  const orgs: OrgKey[] | null = withDate.error
+    ? (await admin.from("organizations").select("id, sheet_company_key").not("sheet_company_key", "is", null)).data
+    : withDate.data;
+  const orgByKey = new Map((orgs ?? []).map((o) => [norm(o.sheet_company_key), o]));
+  let skippedBefore = 0;
 
   const records: Record<string, unknown>[] = [];
   const unmatched = new Set<string>();
@@ -34,11 +40,13 @@ export async function ingestAvisos(rows: IncomingAviso[]): Promise<IngestResult>
     const received = new Date(String(r.fecha_hora ?? ""));
     const collaborator = String(r.colaborador ?? "").trim();
     if (!id || isNaN(received.getTime()) || !collaborator) { skippedInvalid++; continue; }
-    const orgId = orgByKey.get(norm(String(r.empresa ?? "")));
-    if (!orgId) { skippedNoCompany++; unmatched.add(String(r.empresa ?? "").trim()); continue; }
+    const org = orgByKey.get(norm(String(r.empresa ?? "")));
+    if (!org) { skippedNoCompany++; unmatched.add(String(r.empresa ?? "").trim()); continue; }
+    // Avisos anteriores al inicio del servicio (por ejemplo, pruebas en la planilla) no se toman.
+    if (org.avisos_desde && received < new Date(org.avisos_desde)) { skippedBefore++; continue; }
     const cert = yes(r.certificado);
     records.push({
-      org_id: orgId,
+      org_id: org.id,
       external_id: id.slice(0, 80),
       received_at: received.toISOString(),
       collaborator: collaborator.slice(0, 160),
@@ -73,7 +81,7 @@ export async function ingestAvisos(rows: IncomingAviso[]): Promise<IngestResult>
     })
     .eq("id", "avisos");
 
-  return { read: rows.length, saved, skippedNoCompany, skippedInvalid, companiesWithoutMatch };
+  return { read: rows.length, saved, skippedNoCompany, skippedInvalid, skippedBefore, companiesWithoutMatch };
 }
 
 /** Estado legible: "PENDIENTE_EVALUACION" → "Pendiente de evaluación". */

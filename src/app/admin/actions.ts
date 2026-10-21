@@ -23,6 +23,7 @@ function orgFields(f: FormData) {
     staff_count: Number.isFinite(staff) ? staff : null,
     referente_medico: str(f, "referente_medico", 120) || null,
     sheet_company_key: str(f, "sheet_company_key", 160) || null,
+    avisos_desde: /^\d{4}-\d{2}-\d{2}$/.test(str(f, "avisos_desde")) ? `${str(f, "avisos_desde")}T00:00:00-03:00` : null,
   };
 }
 
@@ -103,6 +104,8 @@ export async function updateOrg(f: FormData) {
   if (!id || !fields.name || !fields.plan) redirect(`/admin/org/${id}?error=datos`);
   const { error } = await supabase.from("organizations").update(fields).eq("id", id);
   if (error) redirect(`/admin/org/${id}?error=fallo`);
+  // Avisos ya cargados que quedan antes de la fecha de inicio: se borran del portal.
+  if (fields.avisos_desde) await createAdminClient().from("avisos").delete().eq("org_id", id).lt("received_at", fields.avisos_desde);
   revalidatePath(`/admin/org/${id}`);
   redirect(`/admin/org/${id}?ok=org`);
 }
@@ -113,8 +116,16 @@ export async function inviteToOrg(f: FormData) {
   const email = str(f, "email").toLowerCase();
   const fullName = str(f, "full_name", 120);
   const permission = str(f, "permission");
-  if (!orgId || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !fullName || !(permission in PERMISSIONS)) redirect(`/admin/org/${orgId}?error=datos`);
-  const { error } = await inviteUser({ email, fullName, roleTitle: str(f, "role_title", 80), permission: permission as "admin", orgId });
+  const colaborador = permission === "colaborador";
+  if (!orgId || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !fullName || !(colaborador || permission in PERMISSIONS)) redirect(`/admin/org/${orgId}?error=datos`);
+  const { error } = await inviteUser({
+    email,
+    fullName,
+    roleTitle: str(f, "role_title", 80),
+    permission: colaborador ? "todo" : (permission as "admin"),
+    orgId,
+    userType: colaborador ? "colaborador" : "cliente",
+  });
   if (error) redirect(`/admin/org/${orgId}?error=invitar`);
   revalidatePath(`/admin/org/${orgId}`);
   redirect(`/admin/org/${orgId}?ok=invitado`);

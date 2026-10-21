@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Flash } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
-import { PERMISSIONS } from "@/lib/invite";
+import { roleLabel } from "@/lib/invite";
 import { PermissionPicker } from "@/components/PermissionPicker";
 import { getPlans } from "@/lib/plans";
 import { requireStaff } from "@/lib/session";
@@ -88,7 +88,7 @@ export default async function OrgDetail({
                 {people.map((p) => (
                   <div className="li" key={p.id}>
                     <div className="grow"><b>{p.full_name || "Sin nombre"}</b><span>{p.user_type === "colaborador" ? "Colaborador" : p.role_title}</span></div>
-                    <span className="chip off">{p.user_type === "colaborador" ? "Colaborador" : PERMISSIONS[p.permission]}</span>
+                    <span className="chip off">{roleLabel(p, org.kind === "comercio")}</span>
                   </div>
                 ))}
               </div>
@@ -103,7 +103,7 @@ export default async function OrgDetail({
               <label htmlFor="full_name">Nombre y apellido<input id="full_name" name="full_name" required /></label>
               <label htmlFor="email">Correo<input id="email" name="email" type="email" required /></label>
               <label htmlFor="role_title">Puesto en la empresa (opcional)<input id="role_title" name="role_title" placeholder="Ej.: RR.HH., Dueño, Encargado" /></label>
-              <PermissionPicker defaultValue={people && people.length > 0 ? "todo" : "admin"} />
+              <PermissionPicker comercio={org.kind === "comercio"} defaultValue={people && people.length > 0 ? "todo" : "admin"} />
               <p className="small muted">Le llega un correo para crear su contraseña y entrar al portal.</p>
               <SubmitButton>Enviar invitación</SubmitButton>
             </form>

@@ -268,3 +268,10 @@ tr:last-child td{border-bottom:0}
 .staffbar-links{display:flex;gap:16px}
 .staffbar a{font-weight:600}
 .qa.current{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft)}
+
+/* Personas y roles */
+.person{flex-wrap:wrap}
+.person-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.role-form{display:flex;gap:6px;align-items:center}
+.role-form select{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14.5px}
+.roles-help summary{cursor:pointer}

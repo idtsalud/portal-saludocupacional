@@ -40,6 +40,16 @@ export const PERMISSION_INFO: Record<string, { label: string; help: string }> = 
   reportes: { label: "Solo consulta", help: "Solo mira: ausencias, documentos y servicios. No hace pedidos ni solicitudes." },
 };
 
-export const PERMISSIONS: Record<string, string> = Object.fromEntries(Object.entries(PERMISSION_INFO).map(([k, v]) => [k, v.label]));
+/** El colaborador (o empleado, en un comercio) solo ve su espacio de salud. */
+export const collaboratorRole = (comercio: boolean) => ({
+  label: comercio ? "Empleado" : "Colaborador",
+  help: "Solo ve su espacio de salud: aviso médico, turnos, telemedicina y beneficios. No ve datos del negocio ni de sus compañeros.",
+});
+
+/** Etiqueta del rol de una persona, sea colaborador o parte del equipo que administra. */
+export const roleLabel = (p: { user_type: string; permission: string }, comercio: boolean) =>
+  p.user_type === "colaborador" ? collaboratorRole(comercio).label : PERMISSION_INFO[p.permission]?.label ?? p.permission;
+
+export const PERMISSIONS: Record<string, string> =Object.fromEntries(Object.entries(PERMISSION_INFO).map(([k, v]) => [k, v.label]));
 
 export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
