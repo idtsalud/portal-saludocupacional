@@ -5,10 +5,10 @@ import { requireStaff } from "@/lib/session";
 import { fmtDateTime } from "@/lib/format";
 import { getPlans } from "@/lib/plans";
 import { createOrg } from "./actions";
+import { BusinessHealth, money, type HealthData } from "./BusinessHealth";
 
 type OrgRow = { id: string; name: string; kind: string; plan: string; staff_count: number | null; has_aviso_medico: boolean; sheet_company_key: string | null };
 type AdminRow = { org_id: string; status: string; monthly_price: number | null; cuit: string | null; next_due: string | null };
-const money = (n: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
 const STATUS_CHIP: Record<string, [string, string]> = { activo: ["ok", "Activo"], bonificado: ["info", "Bonificado"], baja: ["off", "Baja"] };
 
 function ClientTable({ title, rows, users, admin }: { title: string; rows: OrgRow[]; users: Map<string, number>; admin: Map<string, AdminRow> }) {
@@ -74,6 +74,24 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const in45 = new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10);
   const dueSoon = all.filter((o) => { const d = admin.get(o.id)?.next_due; return d && d >= today && d <= in45; });
   const noCuit = all.filter((o) => statusOf(o) !== "baja" && !admin.get(o.id)?.cuit);
+  const priceOf = (o: OrgRow) => admin.get(o.id)?.monthly_price ?? 0;
+  const groupBy = (rows: OrgRow[], key: (o: OrgRow) => string, val: (o: OrgRow) => number) => {
+    const m = new Map<string, number>();
+    rows.forEach((o) => m.set(key(o), (m.get(key(o)) ?? 0) + val(o)));
+    return [...m.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+  };
+  const health: HealthData = {
+    revenue,
+    active: { total: active.length, empresas: active.filter((o) => o.kind === "empresa").length, comercios: active.filter((o) => o.kind === "comercio").length },
+    bonificados: all.filter((o) => statusOf(o) === "bonificado").length,
+    bajas: all.filter((o) => statusOf(o) === "baja").length,
+    noCuit: noCuit.length,
+    dueSoon: dueSoon.map((o) => ({ id: o.id, name: o.name, due: admin.get(o.id)!.next_due! })).sort((a, b) => a.due.localeCompare(b.due)),
+    byPlan: groupBy(active, (o) => o.plan, () => 1),
+    byKind: groupBy(active, (o) => (o.kind === "comercio" ? "Comercios" : "Empresas"), () => 1),
+    revenueByPlan: groupBy(active, (o) => o.plan, priceOf),
+    topClients: [...active].sort((a, b) => priceOf(b) - priceOf(a)).slice(0, 8).map((o) => ({ id: o.id, name: o.name, value: priceOf(o) })),
+  };
 
   return (
     <>
@@ -86,12 +104,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       </div>
       <Flash ok={sp.ok} error={sp.error} />
 
-      <section className="health">
-        <div className="card kpi"><b>{money(revenue)}</b><span>Facturación mensual (clientes activos, sin IVA)</span></div>
-        <div className="card kpi"><b>{active.length}</b><span>Clientes activos</span><small>{active.filter((o) => o.kind === "empresa").length} empresas · {active.filter((o) => o.kind === "comercio").length} comercios</small></div>
-        <div className="card kpi"><b>{all.filter((o) => statusOf(o) === "bonificado").length}</b><span>Bonificados</span><small>{all.filter((o) => statusOf(o) === "baja").length} de baja</small></div>
-        <div className="card kpi"><b>{dueSoon.length}</b><span>Vencimientos en 45 días</span><small>{noCuit.length} sin CUIT cargado</small></div>
-      </section>
+      <BusinessHealth d={health} />
 
       <ClientTable title="Empresas" rows={all.filter((o) => o.kind === "empresa")} users={users} admin={admin} />
       <ClientTable title="Comercios" rows={all.filter((o) => o.kind === "comercio")} users={users} admin={admin} />
