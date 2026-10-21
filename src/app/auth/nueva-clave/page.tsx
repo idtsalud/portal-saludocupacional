@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Logo } from "@/components/Icon";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createClient } from "@/lib/supabase/server";
+import { isDemoEmail } from "@/lib/demo";
 
 async function setPassword(formData: FormData) {
   "use server";
@@ -11,6 +12,11 @@ async function setPassword(formData: FormData) {
   if (password !== confirm) redirect("/auth/nueva-clave?error=distintas");
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // La cuenta demo la comparten los prospectos: su contraseña no se cambia desde el portal.
+  if (isDemoEmail(user?.email)) redirect("/?error=demo");
   const { error } = await supabase.auth.updateUser({ password });
   if (error) redirect("/auth/nueva-clave?error=fallo");
   redirect("/?ok=clave");

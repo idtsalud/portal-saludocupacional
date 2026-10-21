@@ -24,6 +24,7 @@ const ERRORS: Record<string, string> = {
   propio: "No podés cambiar tu propio rol ni quitarte el acceso. Pedíselo a otro administrador.",
   invitar: "No pudimos enviar la invitación. Revisá el correo o probá más tarde.",
   fallo: "No pudimos guardar. Probá de nuevo en unos minutos.",
+  demo: "Esta es una cuenta de demostración: la contraseña no se puede cambiar.",
 };
 
 export function Flash({ ok, error }: { ok?: string; error?: string }) {

@@ -59,7 +59,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   ]);
   const admin = new Map(((adminRows ?? []) as AdminRow[]).map((a) => [a.org_id, a]));
   // Las organizaciones de demostración no son clientes reales.
-  const isDemo = (o: OrgRow) => /de demostraci[oó]n$/i.test(o.name);
+  const isDemo = (o: OrgRow) => /de demostraci[oó]n\)?$/i.test(o.name);
   const all = ((orgs ?? []) as OrgRow[]).filter((o) => !isDemo(o));
   const demos = ((orgs ?? []) as OrgRow[]).filter(isDemo);
   const users = new Map<string, number>();

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isDemoEmail } from "@/lib/demo";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -18,6 +19,8 @@ export async function forgotPassword(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   if (!email) redirect("/login?olvide=1&error=datos");
 
+  // La cuenta demo no se recupera: su contraseña es fija y la comparte IDT.
+  if (isDemoEmail(email)) redirect("/login?enviado=1");
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/aceptar?next=/auth/nueva-clave`,
