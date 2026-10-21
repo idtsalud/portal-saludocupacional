@@ -26,6 +26,7 @@ export type Profile = {
   role_title: string;
   permission: "admin" | "todo" | "pedidos" | "reportes";
   is_idt_staff: boolean;
+  is_medico: boolean;
   user_type: "cliente" | "colaborador";
 };
 
@@ -39,7 +40,7 @@ export const getSession = cache(async () => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, org_id, full_name, role_title, permission, is_idt_staff, user_type")
+    .select("id, org_id, full_name, role_title, permission, is_idt_staff, is_medico, user_type")
     .eq("id", user.id)
     .single<Profile>();
 
@@ -69,6 +70,7 @@ export async function requireOrg() {
   const s = await getSession();
   if (!s.org || !s.profile) {
     if (s.profile?.is_idt_staff) redirect("/admin");
+    if (s.profile?.is_medico) redirect("/medico");
     redirect("/sin-acceso");
   }
   if (s.profile.user_type === "colaborador") redirect("/colaborador");
@@ -86,6 +88,13 @@ export async function requireColaborador() {
 export async function requireStaff() {
   const s = await getSession();
   if (!s.profile?.is_idt_staff) redirect("/");
+  return { ...s, profile: s.profile };
+}
+
+/** Para la bandeja del médico de IDT. */
+export async function requireMedico() {
+  const s = await getSession();
+  if (!s.profile?.is_medico) redirect("/");
   return { ...s, profile: s.profile };
 }
 

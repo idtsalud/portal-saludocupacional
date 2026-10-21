@@ -9,6 +9,7 @@ import type { ServiceKey } from "@/lib/services";
 import { PostList } from "@/components/Posts";
 import { ServicePlan, type CatalogService } from "@/components/ServicePlan";
 import { OPEN_STATUSES } from "@/lib/solicitudes";
+import { shownStatus } from "@/lib/medico";
 import { POST_FIELDS, type Post } from "@/lib/posts";
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -32,7 +33,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
   if (has("aviso_medico") && canSeeAbsences(profile)) {
     const { data: avisos } = await supabase
       .from("avisos")
-      .select("received_at, status, certificate_status")
+      .select("received_at, status, medical_status, certificate_status")
       .eq("org_id", org.id)
       .order("received_at", { ascending: false })
       .limit(500);
@@ -40,7 +41,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
     const today = ymd(new Date());
     absent = {
       today: list.filter((a) => ymd(new Date(a.received_at)) === today).length,
-      active: list.filter((a) => /pendiente/i.test(a.status ?? "")).length,
+      active: list.filter((a) => shownStatus(a).open).length,
       pendingCert: list.filter((a) => a.certificate_status === "Pendiente").length,
     };
   }
@@ -80,7 +81,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
       </div>
       <div className="kpis">
         <div className="kpi"><b>{absent.today}</b><span>Avisos de hoy</span></div>
-        <div className="kpi"><b>{absent.active}</b><span>Pendientes de evaluación</span></div>
+        <div className="kpi"><b>{absent.active}</b><span>En seguimiento médico</span></div>
         <div className="kpi"><b>{absent.pendingCert}</b><span>Sin certificado</span></div>
       </div>
     </section>

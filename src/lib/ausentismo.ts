@@ -1,5 +1,6 @@
 import "server-only";
 import type { createClient } from "@/lib/supabase/server";
+import { shownStatus } from "@/lib/medico";
 
 type Supa = Awaited<ReturnType<typeof createClient>>;
 
@@ -17,6 +18,7 @@ export type Aviso = {
   rest_from: string | null;
   rest_to: string | null;
   status: string | null;
+  medical_status: string | null;
   motivo: string | null;
 };
 
@@ -61,7 +63,7 @@ export const restDays = (a: Pick<Aviso, "rest_from" | "rest_to">) =>
 export async function loadMonth(supabase: Supa, orgId: string, m: string) {
   const from = new Date(`${m}-01T00:00:00-03:00`).toISOString();
   const to = new Date(`${shiftMonth(m, 1)}-01T00:00:00-03:00`).toISOString();
-  const fields = "id, received_at, collaborator, notified_employer, consulted_doctor, certificate_status, rest_indicated, rest_from, rest_to, status";
+  const fields = "id, received_at, collaborator, notified_employer, consulted_doctor, certificate_status, rest_indicated, rest_from, rest_to, status, medical_status";
   let res = await supabase.from("avisos").select(fields).eq("org_id", orgId).gte("received_at", from).lt("received_at", to).order("received_at", { ascending: false }).limit(5000);
   // Antes de la migración 0006 no existen las columnas de trazabilidad.
   if (res.error) res = (await supabase.from("avisos").select("id, received_at, collaborator, certificate_status, rest_indicated, status").eq("org_id", orgId).gte("received_at", from).lt("received_at", to).order("received_at", { ascending: false }).limit(5000)) as typeof res;
@@ -77,6 +79,7 @@ export async function loadMonth(supabase: Supa, orgId: string, m: string) {
     consulted_doctor: r.consulted_doctor ?? null,
     rest_from: r.rest_from ?? null,
     rest_to: r.rest_to ?? null,
+    medical_status: r.medical_status ?? null,
     motivo: motivoById.get(r.id) ?? null,
   }));
   return { avisos, canSeeMotivo: !mErr && motivoById.size > 0 };
@@ -105,7 +108,7 @@ export function summarize(avisos: Aviso[], m: string) {
     restDays: avisos.reduce((s, a) => s + restDaysInMonth(a, m), 0),
     withRest: avisos.filter((a) => a.rest_indicated).length,
     noCert: avisos.filter((a) => a.certificate_status === "Pendiente").length,
-    toEvaluate: avisos.filter((a) => /pendiente/i.test(a.status ?? "")).length,
+    toEvaluate: avisos.filter((a) => shownStatus(a).open).length,
     absentToday: avisos.filter((a) => a.rest_from && a.rest_from <= today && (a.rest_to ?? a.rest_from) >= today),
     notifiedPct: withNotice.length ? Math.round((withNotice.filter((a) => a.notified_employer).length / withNotice.length) * 100) : null,
     perDay,

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prettyStatus } from "@/lib/avisos-sync";
+import { shownStatus } from "@/lib/medico";
 import { loadMonth, parseMonth, restDays, ymd } from "@/lib/ausentismo";
 import { canSeeAbsences, getSession } from "@/lib/session";
 import { fmtDateTime } from "@/lib/format";
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     dmy(a.rest_from),
     dmy(a.rest_to ?? a.rest_from),
     a.rest_from ? String(restDays(a)) : "",
-    prettyStatus(a.status),
+    shownStatus(a).label,
   ]);
   const cell = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
   const csv = "﻿" + [head, ...rows].map((r) => r.map(cell).join(";")).join("\r\n");

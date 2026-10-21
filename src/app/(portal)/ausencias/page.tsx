@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Icon } from "@/components/Icon";
 import { PrintButton } from "@/components/PrintButton";
-import { prettyStatus } from "@/lib/avisos-sync";
+import { shownStatus } from "@/lib/medico";
 import { loadMonth, monthLabel, parseMonth, restDays, shiftMonth, summarize, ymd } from "@/lib/ausentismo";
 import { canSeeAbsences, requireOrg } from "@/lib/session";
 import { fmtDate, fmtDateTime } from "@/lib/format";
@@ -58,7 +58,7 @@ export default async function Ausencias({ searchParams }: { searchParams: Promis
         </section>
         <section className="card kpi"><b>{s.people.length}</b><span>Personas con aviso</span></section>
         <section className="card kpi"><b>{s.restDays}</b><span>Días de reposo indicados</span><small>{s.withRest} avisos con reposo</small></section>
-        <section className="card kpi"><b>{s.noCert}</b><span>Sin certificado</span><small>{s.toEvaluate} pendientes de evaluación</small></section>
+        <section className="card kpi"><b>{s.noCert}</b><span>Sin certificado</span><small>{s.toEvaluate} en seguimiento médico</small></section>
         {isCurrent && <section className="card kpi alert-kpi"><b>{absentToday.length}</b><span>Con reposo hoy</span></section>}
         {s.notifiedPct != null && <section className="card kpi"><b>{s.notifiedPct}%</b><span>Avisaron a su supervisor</span></section>}
       </div>
@@ -133,7 +133,7 @@ export default async function Ausencias({ searchParams }: { searchParams: Promis
                     <td>{yn(a.consulted_doctor)}</td>
                     <td>{a.certificate_status ? <span className={"chip " + (a.certificate_status === "Recibido" ? "ok" : "warn")}>{a.certificate_status}</span> : "—"}</td>
                     <td className="num">{a.rest_from ? `${shortDay(a.rest_from)} al ${shortDay(a.rest_to ?? a.rest_from)} · ${restDays(a)} d` : a.rest_indicated === false ? "Sin reposo" : a.rest_indicated ? "Sí" : "—"}</td>
-                    <td><span className={"chip " + (/pendiente/i.test(a.status ?? "") ? "warn" : "info")}>{prettyStatus(a.status)}</span></td>
+                    <td><span className={"chip " + shownStatus(a).tone}>{shownStatus(a).label}</span></td>
                   </tr>
                 ))}
               </tbody>
