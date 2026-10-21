@@ -311,3 +311,13 @@ tr:last-child td{border-bottom:0}
 /* Salud del negocio */
 .health{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:16px}
 .status-baja td{opacity:.55}
+
+/* Menú con grupos */
+.nav-group > button{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border-radius:10px;color:var(--side-ink);background:none;border:0;font-size:15px;cursor:pointer;text-align:left}
+.nav-group > button:hover{background:rgba(255,255,255,.07)}
+.nav-group > button span{flex:1}
+.nav-group.active > button{color:#fff;font-weight:600}
+.nav-group .chev{width:16px;height:16px;opacity:.7;transition:transform .15s}
+.nav-group.open .chev{transform:rotate(90deg)}
+.nav-sub{display:flex;flex-direction:column;gap:2px;margin:2px 0 6px 22px;padding-left:12px;border-left:1px solid rgba(255,255,255,.14)}
+.nav .nav-sub a{padding:8px 10px;font-size:14.5px}
