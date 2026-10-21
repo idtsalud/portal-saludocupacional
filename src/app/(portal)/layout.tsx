@@ -29,7 +29,7 @@ export default async function PortalLayout({ children }: { children: React.React
   const userLabel = `${profile.full_name || "Mi cuenta"}${profile.role_title ? ` · ${profile.role_title}` : ""}`;
 
   return (
-    <Sidebar items={items} orgName={org.name} orgDetail={detail} userLabel={userLabel} logoutAction={logout}>
+    <Sidebar items={items} orgName={org.name} orgDetail={detail} logoUrl={org.logo_url} userLabel={userLabel} logoutAction={logout}>
       {profile.is_idt_staff && <StaffBar view={comercio ? "Comercio" : "Empresa"} />}
       {children}
     </Sidebar>

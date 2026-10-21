@@ -7,6 +7,7 @@ import { getPlans } from "@/lib/plans";
 import { requireStaff } from "@/lib/session";
 import { applyPreset, inviteToOrg, updateOrg, updateOrgServices } from "../../actions";
 import { OrgFields } from "../../OrgFields";
+import { AdminFicha, type OrgAdmin } from "./AdminFicha";
 
 const AUDIENCE: Record<string, string> = { cliente: "Para la empresa o comercio", ambos: "Para la empresa y sus colaboradores", colaborador: "Para los colaboradores" };
 
@@ -22,10 +23,11 @@ export default async function OrgDetail({
   const { supabase } = await requireStaff();
   const { data: org } = await supabase.from("organizations").select("*").eq("id", id).single();
   if (!org) notFound();
-  const [{ data: people }, { data: catalog }, { data: enabled }] = await Promise.all([
+  const [{ data: people }, { data: catalog }, { data: enabled }, { data: adminData }] = await Promise.all([
     supabase.from("profiles").select("id, full_name, role_title, permission, user_type").eq("org_id", id).order("created_at"),
     supabase.from("services").select("key, name, description, audience").eq("active", true).order("sort"),
     supabase.from("org_services").select("service_key").eq("org_id", id),
+    supabase.from("org_admin").select("*").eq("org_id", id).maybeSingle(),
   ]);
   const on = new Set((enabled ?? []).map((r) => r.service_key as string));
   const groups = ["cliente", "ambos", "colaborador"].map((a) => [a, (catalog ?? []).filter((s) => s.audience === a)] as const);
@@ -41,6 +43,8 @@ export default async function OrgDetail({
         </div>
       </div>
       <Flash ok={sp.ok} error={sp.error} />
+
+      <AdminFicha orgId={org.id} admin={adminData as OrgAdmin | null} logoUrl={org.logo_url ?? null} />
 
       <div className="split">
         <section className="card">

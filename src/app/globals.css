@@ -301,3 +301,13 @@ tr:last-child td{border-bottom:0}
   body{background:#fff}
   .card{break-inside:avoid;box-shadow:none}
 }
+
+/* Logos de clientes */
+.logo-row{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.logo-box{width:120px;height:64px;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center;background:#fff;overflow:hidden}
+.logo-box img{max-width:100%;max-height:100%;object-fit:contain;padding:6px}
+.org-logo{display:block;background:#fff;border-radius:10px;padding:6px 10px;margin-bottom:10px;max-width:100%}
+.org-logo img{display:block;max-height:40px;max-width:100%;object-fit:contain}
+/* Salud del negocio */
+.health{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:16px}
+.status-baja td{opacity:.55}

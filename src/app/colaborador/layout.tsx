@@ -16,7 +16,7 @@ export default async function ColaboradorLayout({ children }: { children: React.
   if (profile.is_idt_staff) items.push({ href: "/admin", label: "Administración IDT", icon: "gear" });
 
   return (
-    <Sidebar items={items} orgName={org.name} orgDetail="Espacio del colaborador" userLabel={profile.full_name || "Mi cuenta"} logoutAction={logout}>
+    <Sidebar items={items} orgName={org.name} orgDetail="Espacio del colaborador" logoUrl={org.logo_url} userLabel={profile.full_name || "Mi cuenta"} logoutAction={logout}>
       {profile.is_idt_staff && <StaffBar view={org.kind === "comercio" ? "Empleado de comercio" : "Colaborador de empresa"} />}
       {children}
     </Sidebar>

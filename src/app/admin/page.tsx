@@ -7,8 +7,11 @@ import { getPlans } from "@/lib/plans";
 import { createOrg } from "./actions";
 
 type OrgRow = { id: string; name: string; kind: string; plan: string; staff_count: number | null; has_aviso_medico: boolean; sheet_company_key: string | null };
+type AdminRow = { org_id: string; status: string; monthly_price: number | null; cuit: string | null; next_due: string | null };
+const money = (n: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
+const STATUS_CHIP: Record<string, [string, string]> = { activo: ["ok", "Activo"], bonificado: ["info", "Bonificado"], baja: ["off", "Baja"] };
 
-function ClientTable({ title, rows, users }: { title: string; rows: OrgRow[]; users: Map<string, number> }) {
+function ClientTable({ title, rows, users, admin }: { title: string; rows: OrgRow[]; users: Map<string, number>; admin: Map<string, AdminRow> }) {
   return (
     <section className="card">
       <div className="row-h">
@@ -18,17 +21,22 @@ function ClientTable({ title, rows, users }: { title: string; rows: OrgRow[]; us
       {rows.length > 0 ? (
         <div className="tbl">
           <table>
-            <thead><tr><th>Nombre</th><th>Plan</th><th>Personas</th><th>Usuarios en el portal</th><th>Aviso Médico</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Estado</th><th>Plan</th><th className="num">Valor mensual</th><th>Usuarios en el portal</th><th>Aviso Médico</th></tr></thead>
             <tbody>
-              {rows.map((o) => (
-                <tr key={o.id}>
+              {rows.map((o) => {
+                const a = admin.get(o.id);
+                const [tone, label] = STATUS_CHIP[a?.status ?? "activo"];
+                return (
+                <tr key={o.id} className={a?.status === "baja" ? "status-baja" : ""}>
                   <td><Link href={`/admin/org/${o.id}`}><b>{o.name}</b></Link></td>
+                  <td><span className={"chip " + tone}>{label}</span></td>
                   <td>{o.plan}</td>
-                  <td className="num">{o.staff_count ?? "—"}</td>
+                  <td className="num">{a?.monthly_price ? money(a.monthly_price) : "—"}</td>
                   <td>{users.get(o.id) ? <span className="num">{users.get(o.id)}</span> : <span className="chip warn">Sin administrador</span>}</td>
                   <td><span className={"chip " + (o.has_aviso_medico ? "ok" : "off")}>{o.has_aviso_medico ? "Sí" : "No"}</span></td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -42,12 +50,14 @@ function ClientTable({ title, rows, users }: { title: string; rows: OrgRow[]; us
 export default async function AdminHome({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const { supabase } = await requireStaff();
-  const [{ data: orgs }, { data: sync }, { data: people }, plans] = await Promise.all([
+  const [{ data: orgs }, { data: sync }, { data: people }, plans, { data: adminRows }] = await Promise.all([
     supabase.from("organizations").select("id, name, kind, plan, staff_count, has_aviso_medico, sheet_company_key").order("name"),
     supabase.from("sync_state").select("last_synced_at, last_error, rows_read").eq("id", "avisos").single(),
     supabase.from("profiles").select("org_id").eq("user_type", "cliente").eq("is_idt_staff", false),
     getPlans(supabase, true),
+    supabase.from("org_admin").select("org_id, status, monthly_price, cuit, next_due"),
   ]);
+  const admin = new Map(((adminRows ?? []) as AdminRow[]).map((a) => [a.org_id, a]));
   // Las organizaciones de demostración no son clientes reales.
   const isDemo = (o: OrgRow) => /de demostraci[oó]n$/i.test(o.name);
   const all = ((orgs ?? []) as OrgRow[]).filter((o) => !isDemo(o));
@@ -55,6 +65,15 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const users = new Map<string, number>();
   (people ?? []).forEach((p) => p.org_id && users.set(p.org_id, (users.get(p.org_id) ?? 0) + 1));
   const withAviso = all.filter((o) => o.has_aviso_medico);
+
+  // Salud del negocio
+  const statusOf = (o: OrgRow) => admin.get(o.id)?.status ?? "activo";
+  const active = all.filter((o) => statusOf(o) === "activo");
+  const revenue = active.reduce((s, o) => s + (admin.get(o.id)?.monthly_price ?? 0), 0);
+  const today = new Date().toISOString().slice(0, 10);
+  const in45 = new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10);
+  const dueSoon = all.filter((o) => { const d = admin.get(o.id)?.next_due; return d && d >= today && d <= in45; });
+  const noCuit = all.filter((o) => statusOf(o) !== "baja" && !admin.get(o.id)?.cuit);
 
   return (
     <>
@@ -67,8 +86,15 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       </div>
       <Flash ok={sp.ok} error={sp.error} />
 
-      <ClientTable title="Empresas" rows={all.filter((o) => o.kind === "empresa")} users={users} />
-      <ClientTable title="Comercios" rows={all.filter((o) => o.kind === "comercio")} users={users} />
+      <section className="health">
+        <div className="card kpi"><b>{money(revenue)}</b><span>Facturación mensual (clientes activos, sin IVA)</span></div>
+        <div className="card kpi"><b>{active.length}</b><span>Clientes activos</span><small>{active.filter((o) => o.kind === "empresa").length} empresas · {active.filter((o) => o.kind === "comercio").length} comercios</small></div>
+        <div className="card kpi"><b>{all.filter((o) => statusOf(o) === "bonificado").length}</b><span>Bonificados</span><small>{all.filter((o) => statusOf(o) === "baja").length} de baja</small></div>
+        <div className="card kpi"><b>{dueSoon.length}</b><span>Vencimientos en 45 días</span><small>{noCuit.length} sin CUIT cargado</small></div>
+      </section>
+
+      <ClientTable title="Empresas" rows={all.filter((o) => o.kind === "empresa")} users={users} admin={admin} />
+      <ClientTable title="Comercios" rows={all.filter((o) => o.kind === "comercio")} users={users} admin={admin} />
       {demos.length > 0 && (
         <p className="small muted">
           Clientes de demostración (para probar el portal):{" "}

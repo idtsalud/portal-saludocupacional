@@ -11,6 +11,7 @@ export function Sidebar({
   items,
   orgName,
   orgDetail,
+  logoUrl,
   userLabel,
   logoutAction,
   children,
@@ -18,6 +19,7 @@ export function Sidebar({
   items: NavItem[];
   orgName: string;
   orgDetail: string;
+  logoUrl?: string | null;
   userLabel: string;
   logoutAction: () => Promise<void>;
   children: React.ReactNode;
@@ -33,6 +35,7 @@ export function Sidebar({
           <Logo />
         </Link>
         <div className="org">
+          {logoUrl && <span className="org-logo"><img src={logoUrl} alt={`Logo de ${orgName}`} /></span>}
           <b>{orgName}</b>
           <span>{orgDetail}</span>
         </div>

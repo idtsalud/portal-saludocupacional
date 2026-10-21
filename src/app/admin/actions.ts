@@ -238,3 +238,59 @@ export async function savePlan(f: FormData) {
   revalidatePath("/admin/planes");
   redirect(`/admin/planes/${key}?ok=plan`);
 }
+
+const num = (v: string) => {
+  const t = v.replace(/[^\d,.-]/g, "");
+  if (!t) return null;
+  // "154.688" o "154.688,50" (formato argentino) o "154688.5"
+  const n = /,\d{1,2}$/.test(t) ? Number(t.replace(/\./g, "").replace(",", ".")) : /\.\d{3}(\.|$)/.test(t) ? Number(t.replace(/\./g, "")) : Number(t.replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+};
+
+/** Guarda la ficha administrativa (solo IDT) de un cliente. */
+export async function updateOrgAdmin(f: FormData) {
+  const { supabase } = await requireStaff();
+  const orgId = str(f, "org_id");
+  const status = str(f, "status");
+  if (!orgId || !["activo", "bonificado", "baja"].includes(status)) redirect(`/admin/org/${orgId}?error=datos#ficha`);
+  const due = str(f, "next_due");
+  const { error } = await supabase.from("org_admin").upsert({
+    org_id: orgId,
+    status,
+    cuit: str(f, "cuit", 20) || null,
+    monthly_price: num(str(f, "monthly_price", 30)),
+    discount_pct: num(str(f, "discount_pct", 10)),
+    billing_mode: str(f, "billing_mode", 200) || null,
+    purchase_order: str(f, "purchase_order", 200) || null,
+    invoicing_entity: str(f, "invoicing_entity", 120) || null,
+    vigencia: str(f, "vigencia", 200) || null,
+    next_due: /^\d{4}-\d{2}-\d{2}$/.test(due) ? due : null,
+    referentes: str(f, "referentes", 400) || null,
+    emails: str(f, "emails", 600) || null,
+    service_detail: str(f, "service_detail", 400) || null,
+    consult_limit: str(f, "consult_limit", 80) || null,
+    notes: str(f, "notes", 2000) || null,
+  });
+  if (error) redirect(`/admin/org/${orgId}?error=fallo#ficha`);
+  revalidatePath(`/admin/org/${orgId}`);
+  revalidatePath("/admin");
+  redirect(`/admin/org/${orgId}?ok=guardado#ficha`);
+}
+
+/** Sube el logo del cliente a la carpeta pública de logos. */
+export async function uploadLogo(f: FormData) {
+  await requireStaff();
+  const orgId = str(f, "org_id");
+  const file = f.get("logo");
+  if (!orgId || !(file instanceof File) || file.size === 0 || file.size > 2 * 1024 * 1024 || !/^image\//.test(file.type)) redirect(`/admin/org/${orgId}?error=datos#ficha`);
+  const ext = (file.name.split(".").pop() ?? "png").toLowerCase().replace(/[^a-z]/g, "") || "png";
+  const path = `${orgId}/logo-${Date.now()}.${ext}`;
+  const admin = createAdminClient();
+  const { error } = await admin.storage.from("logos").upload(path, file, { contentType: file.type, upsert: true });
+  if (error) redirect(`/admin/org/${orgId}?error=fallo#ficha`);
+  const url = admin.storage.from("logos").getPublicUrl(path).data.publicUrl;
+  await admin.from("organizations").update({ logo_url: url }).eq("id", orgId);
+  revalidatePath(`/admin/org/${orgId}`);
+  revalidatePath("/", "layout");
+  redirect(`/admin/org/${orgId}?ok=guardado#ficha`);
+}

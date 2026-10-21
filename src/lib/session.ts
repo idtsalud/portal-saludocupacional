@@ -12,6 +12,7 @@ export type Organization = {
   plan_units: number;
   staff_count: number | null;
   referente_medico: string | null;
+  logo_url: string | null;
   has_aviso_medico: boolean;
   has_ruta_saludable: boolean;
   has_academia: boolean;
@@ -48,7 +49,7 @@ export const getSession = cache(async () => {
     const [{ data }, { data: svc }] = await Promise.all([
       supabase
         .from("organizations")
-        .select("id, name, kind, plan, plan_units, staff_count, referente_medico, has_aviso_medico, has_ruta_saludable, has_academia, has_campanas")
+        .select("id, name, kind, plan, plan_units, staff_count, referente_medico, logo_url, has_aviso_medico, has_ruta_saludable, has_academia, has_campanas")
         .eq("id", profile.org_id)
         .single<Organization>(),
       supabase.from("org_services").select("service_key").eq("org_id", profile.org_id),
